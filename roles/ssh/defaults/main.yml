@@ -1,0 +1,7 @@
+---
+ssh_port: 23145
+ssh_admin_user: homelab_admin
+ssh_admin_groups:
+  - sudo
+ssh_public_keys: []
+ssh_password_authentication: "no"

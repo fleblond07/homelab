@@ -1,0 +1,7 @@
+---
+- name: Configure SSH
+  hosts: homelab
+  become: true
+  roles:
+    - role: ssh
+      tags: [ssh]
