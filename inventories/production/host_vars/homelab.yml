@@ -1,2 +1,2 @@
 hostname: homelab
-ansible_user: hl_ansible
+ansible_user: homelab_admin

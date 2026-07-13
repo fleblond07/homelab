@@ -1,0 +1,43 @@
+---
+- name: Create admin user
+  ansible.builtin.user:
+    name: "{{ ssh_admin_user }}"
+    groups: "{{ ssh_admin_groups }}"
+    shell: /bin/bash
+    create_home: true
+    append: true
+
+- name: Grant admin user passwordless sudo
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ ssh_admin_user }}"
+    content: "{{ ssh_admin_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Add public keys for admin user
+  ansible.posix.authorized_key:
+    user: "{{ ssh_admin_user }}"
+    key: "{{ item }}"
+  loop: "{{ ssh_public_keys }}"
+
+- name: Configure sshd
+  ansible.builtin.template:
+    src: 99-homelab.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-homelab.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart sshd
+
+- name: Flush handlers to apply sshd changes
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for sshd to listen on the new port
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: "{{ ssh_port }}"
+    timeout: 10
+  become: false
+  delegate_to: localhost
