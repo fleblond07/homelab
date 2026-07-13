@@ -1,0 +1,2 @@
+hostname: homelab
+ansible_user: hl_ansible
