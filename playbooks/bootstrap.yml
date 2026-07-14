@@ -3,7 +3,7 @@
   hosts: homelab
   become: true
   vars:
-    ansible_user: hl_ansible
+    ansible_user: homelab_admin
     ansible_port: 22
   roles:
     - role: ssh
