@@ -1,0 +1,8 @@
+---
+- name: Configure logging
+  hosts: homelab
+  become: true
+  roles:
+    - role: logging
+      tags: [logging]
+

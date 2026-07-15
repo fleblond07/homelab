@@ -6,5 +6,15 @@
     ansible_user: homelab_admin
     ansible_port: 22
   roles:
+    - role: base_packages
+      tags: [packages, python, tools]
+    - role: time
+      tags: [time, ntp]
+    - role: security_updates
+      tags: [security, updates, unattended-upgrades]
+    - role: system_services
+      tags: [services]
+    - role: logging
+      tags: [logging]
     - role: ssh
       tags: [ssh]

@@ -1,0 +1,8 @@
+---
+- name: Configure security updates
+  hosts: homelab
+  become: true
+  roles:
+    - role: security_updates
+      tags: [security, updates, unattended-upgrades]
+

@@ -1,0 +1,8 @@
+---
+logging_journald_storage: persistent
+logging_journald_system_max_use: 1G
+logging_journald_max_retention_sec: 1month
+logging_logrotate_frequency: weekly
+logging_logrotate_rotate: 8
+logging_logrotate_compress: true
+

@@ -1,0 +1,11 @@
+{{ logging_logrotate_frequency }}
+rotate {{ logging_logrotate_rotate }}
+create
+dateext
+{% if logging_logrotate_compress | bool %}
+compress
+delaycompress
+{% endif %}
+
+include /etc/logrotate.d
+

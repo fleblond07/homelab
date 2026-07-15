@@ -1,0 +1,14 @@
+Unattended-Upgrade::Origins-Pattern {
+        "origin=${distro_id},codename=${distro_codename}-security";
+        "origin=${distro_id},codename=${distro_codename},label=${distro_id}-Security";
+};
+
+Unattended-Upgrade::Package-Blacklist {
+};
+
+Unattended-Upgrade::Automatic-Reboot "{{ security_updates_automatic_reboot | bool | ternary('true', 'false') }}";
+Unattended-Upgrade::Automatic-Reboot-Time "{{ security_updates_automatic_reboot_time }}";
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-New-Unused-Dependencies "true";
+Unattended-Upgrade::Remove-Unused-Dependencies "false";
+

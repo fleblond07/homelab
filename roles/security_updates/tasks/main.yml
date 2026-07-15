@@ -1,0 +1,32 @@
+---
+- name: Install unattended security update packages
+  ansible.builtin.apt:
+    name: "{{ security_updates_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Enable periodic apt security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+- name: Configure unattended security updates
+  ansible.builtin.template:
+    src: 50unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install currently available security updates
+  ansible.builtin.command: unattended-upgrade --minimal-upgrade-steps
+  register: security_updates_run
+  changed_when: "'No packages found that can be upgraded unattended' not in security_updates_run.stdout"
+  when: security_updates_apply_now | bool
+

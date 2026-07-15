@@ -1,0 +1,8 @@
+---
+- name: Disable unused services
+  hosts: homelab
+  become: true
+  roles:
+    - role: system_services
+      tags: [services]
+

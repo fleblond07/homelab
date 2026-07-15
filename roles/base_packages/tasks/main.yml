@@ -1,0 +1,16 @@
+---
+- name: Update apt package index
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: "{{ base_packages_cache_valid_time }}"
+
+- name: Install Python 3
+  ansible.builtin.apt:
+    name: "{{ base_packages_python }}"
+    state: present
+
+- name: Install basic tools
+  ansible.builtin.apt:
+    name: "{{ base_packages_basic_tools }}"
+    state: present
+

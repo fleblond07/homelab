@@ -1,0 +1,18 @@
+---
+- name: Install NTP service
+  ansible.builtin.apt:
+    name: "{{ time_ntp_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Configure timezone
+  community.general.timezone:
+    name: "{{ time_timezone }}"
+
+- name: Enable NTP synchronization
+  ansible.builtin.systemd:
+    name: "{{ time_ntp_service }}"
+    enabled: true
+    state: started
+

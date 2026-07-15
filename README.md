@@ -50,8 +50,25 @@ sudo -n id
 
 `sudo -n id` should print `uid=0(root)` without prompting for a password.
 
-## Running the SSH bootstrap
+## Running the bootstrap
 
 ```bash
 ansible-playbook playbooks/bootstrap.yml
 ```
+
+The bootstrap playbook configures base packages, timezone/NTP, security
+updates, unused services, logging, and SSH. Individual playbooks are also
+available when you only want one area:
+
+```bash
+ansible-playbook playbooks/base_packages.yml
+ansible-playbook playbooks/time.yml
+ansible-playbook playbooks/security_updates.yml
+ansible-playbook playbooks/system_services.yml
+ansible-playbook playbooks/logging.yml
+ansible-playbook playbooks/ssh.yml
+```
+
+Bootstrap roles are tagged, so a focused run can use tags such as `time`,
+`ntp`, `packages`, `python`, `tools`, `security`, `updates`,
+`unattended-upgrades`, `services`, `logging`, or `ssh`.

@@ -1,0 +1,8 @@
+---
+- name: Configure time and NTP
+  hosts: homelab
+  become: true
+  roles:
+    - role: time
+      tags: [time, ntp]
+

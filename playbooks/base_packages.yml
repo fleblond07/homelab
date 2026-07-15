@@ -1,0 +1,8 @@
+---
+- name: Install base packages
+  hosts: homelab
+  become: true
+  roles:
+    - role: base_packages
+      tags: [packages, python, tools]
+

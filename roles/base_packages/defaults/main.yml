@@ -1,0 +1,11 @@
+---
+base_packages_cache_valid_time: 3600
+base_packages_python:
+  - python3
+base_packages_basic_tools:
+  - curl
+  - git
+  - vim
+  - htop
+  - smartmontools
+
