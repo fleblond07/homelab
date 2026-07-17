@@ -5,4 +5,3 @@ logging_journald_max_retention_sec: 1month
 logging_logrotate_frequency: weekly
 logging_logrotate_rotate: 8
 logging_logrotate_compress: true
-

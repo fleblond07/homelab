@@ -29,4 +29,3 @@
   register: security_updates_run
   changed_when: "'No packages found that can be upgraded unattended' not in security_updates_run.stdout"
   when: security_updates_apply_now | bool
-

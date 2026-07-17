@@ -5,4 +5,3 @@ security_updates_packages:
 security_updates_apply_now: true
 security_updates_automatic_reboot: false
 security_updates_automatic_reboot_time: "03:30"
-

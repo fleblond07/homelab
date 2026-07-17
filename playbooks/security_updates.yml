@@ -5,4 +5,3 @@
   roles:
     - role: security_updates
       tags: [security, updates, unattended-upgrades]
-

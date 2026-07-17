@@ -1,7 +1,6 @@
 ---
-unused_services:
+system_services_unused_services:
   - avahi-daemon
   - bluetooth
   - cups
   - ModemManager
-

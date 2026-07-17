@@ -15,4 +15,3 @@
     name: "{{ time_ntp_service }}"
     enabled: true
     state: started
-

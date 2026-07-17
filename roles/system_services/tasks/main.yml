@@ -4,9 +4,8 @@
     name: "{{ item }}"
     state: stopped
     enabled: false
-  loop: "{{ unused_services }}"
-  register: unused_services_result
+  loop: "{{ system_services_unused_services }}"
+  register: system_services_unused_services_result
   failed_when: >-
-    unused_services_result is failed and
-    "Could not find the requested service" not in (unused_services_result.msg | default(""))
-
+    system_services_unused_services_result is failed and
+    "Could not find the requested service" not in (system_services_unused_services_result.msg | default(""))

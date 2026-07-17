@@ -3,4 +3,3 @@ time_timezone: "{{ timezone | default('UTC') }}"
 time_ntp_service: systemd-timesyncd
 time_ntp_packages:
   - systemd-timesyncd
-
