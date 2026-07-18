@@ -1,0 +1,6 @@
+---
+- name: Restart sshd for hardening
+  ansible.builtin.systemd:
+    name: ssh
+    enabled: true
+    state: restarted

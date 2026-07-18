@@ -16,5 +16,7 @@
       tags: [services]
     - role: logging
       tags: [logging]
+    - role: ssh_hardening
+      tags: [ssh, hardening]
     - role: ssh
       tags: [ssh]

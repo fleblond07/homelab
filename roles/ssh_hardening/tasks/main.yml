@@ -1,0 +1,19 @@
+---
+- name: Build SSH LAN allow list
+  ansible.builtin.set_fact:
+    ssh_hardening_allow_users_entries: >-
+      {{ ssh_hardening_allow_users_entries | default([]) + [item.0 ~ '@' ~ item.1] }}
+  loop: "{{ ssh_hardening_allowed_users | product(ssh_hardening_lan_cidrs) | list }}"
+
+- name: Configure SSH hardening
+  ansible.builtin.template:
+    src: 99-z-homelab-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-z-homelab-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart sshd for hardening
+
+- name: Validate active sshd configuration
+  ansible.builtin.command: sshd -t
+  changed_when: false

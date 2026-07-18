@@ -1,0 +1,7 @@
+---
+- name: Harden SSH access
+  hosts: homelab
+  become: true
+  roles:
+    - role: ssh_hardening
+      tags: [ssh, hardening]

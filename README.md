@@ -66,9 +66,10 @@ ansible-playbook playbooks/time.yml
 ansible-playbook playbooks/security_updates.yml
 ansible-playbook playbooks/system_services.yml
 ansible-playbook playbooks/logging.yml
+ansible-playbook playbooks/ssh_hardening.yml
 ansible-playbook playbooks/ssh.yml
 ```
 
 Bootstrap roles are tagged, so a focused run can use tags such as `time`,
 `ntp`, `packages`, `python`, `tools`, `security`, `updates`,
-`unattended-upgrades`, `services`, `logging`, or `ssh`.
+`unattended-upgrades`, `services`, `logging`, `hardening`, or `ssh`.

@@ -1,0 +1,14 @@
+---
+ssh_hardening_permit_root_login: "no"
+ssh_hardening_password_authentication: "no"
+ssh_hardening_kbd_interactive_authentication: "no"
+ssh_hardening_permit_empty_passwords: "no"
+ssh_hardening_login_grace_time: 30
+ssh_hardening_client_alive_interval: 300
+ssh_hardening_client_alive_count_max: 2
+ssh_hardening_max_auth_tries: 3
+ssh_hardening_allowed_users:
+  - "{{ ssh_admin_user | default(ansible_user | default('homelab_admin')) }}"
+ssh_hardening_lan_cidrs:
+  - 127.0.0.1/32
+  - 192.168.0.0/16
