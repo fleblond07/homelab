@@ -1,0 +1,7 @@
+---
+- name: Configure Fail2Ban
+  hosts: homelab
+  become: true
+  roles:
+    - role: fail2ban
+      tags: [fail2ban]
