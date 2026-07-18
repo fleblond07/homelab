@@ -57,7 +57,7 @@ ansible-playbook playbooks/bootstrap.yml
 ```
 
 The bootstrap playbook configures base packages, timezone/NTP, security
-updates, unused services, logging, and SSH. Individual playbooks are also
+updates, unused services, logging, SSH, and firewalling. Individual playbooks are also
 available when you only want one area:
 
 ```bash
@@ -68,8 +68,10 @@ ansible-playbook playbooks/system_services.yml
 ansible-playbook playbooks/logging.yml
 ansible-playbook playbooks/ssh_hardening.yml
 ansible-playbook playbooks/ssh.yml
+ansible-playbook playbooks/firewall.yml
 ```
 
 Bootstrap roles are tagged, so a focused run can use tags such as `time`,
 `ntp`, `packages`, `python`, `tools`, `security`, `updates`,
-`unattended-upgrades`, `services`, `logging`, `hardening`, or `ssh`.
+`unattended-upgrades`, `services`, `logging`, `hardening`, `ssh`, or
+`firewall`.

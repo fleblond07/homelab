@@ -1,5 +1,6 @@
 timezone: Europe/Paris
 docker_user: hl_docker
+ssh_port: 23145
 
 ssh_public_keys:
   - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIISmH5fdHgqol2WI4f7xWKbQXmhT14gnSWuMEfhndhcR" # Laptop

@@ -1,0 +1,41 @@
+---
+- name: Install UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Allow global TCP service ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ firewall_global_tcp_ports }}"
+
+- name: Allow SSH from LAN CIDRs
+  community.general.ufw:
+    rule: allow
+    port: "{{ firewall_ssh_port }}"
+    proto: tcp
+    from_ip: "{{ item }}"
+  loop: "{{ firewall_ssh_lan_cidrs }}"
+
+- name: Deny inbound traffic by default
+  community.general.ufw:
+    default: deny
+    direction: incoming
+
+- name: Allow outbound traffic by default
+  community.general.ufw:
+    default: allow
+    direction: outgoing
+
+- name: Deny routed traffic by default
+  community.general.ufw:
+    default: deny
+    direction: routed
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled

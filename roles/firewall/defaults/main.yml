@@ -1,0 +1,7 @@
+---
+firewall_global_tcp_ports:
+  - 80
+  - 443
+firewall_ssh_port: "{{ ssh_port | default(23145) }}"
+firewall_ssh_lan_cidrs: >-
+  {{ ssh_hardening_lan_cidrs | default(['127.0.0.1/32', '192.168.0.0/16']) }}

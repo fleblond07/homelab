@@ -20,3 +20,5 @@
       tags: [ssh, hardening]
     - role: ssh
       tags: [ssh]
+    - role: firewall
+      tags: [firewall]

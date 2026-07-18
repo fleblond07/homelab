@@ -1,0 +1,7 @@
+---
+- name: Configure firewall
+  hosts: homelab
+  become: true
+  roles:
+    - role: firewall
+      tags: [firewall]
