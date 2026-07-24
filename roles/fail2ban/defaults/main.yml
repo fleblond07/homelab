@@ -11,7 +11,7 @@ fail2ban_findtime: 10m
 fail2ban_maxretry: 5
 fail2ban_backend: systemd
 fail2ban_alert_email: root@localhost
-fail2ban_sender: "fail2ban@{{ ansible_fqdn | default(inventory_hostname) }}"
+fail2ban_sender: "fail2ban@{{ ansible_facts['fqdn'] | default(inventory_hostname) }}"
 fail2ban_mta: sendmail
 fail2ban_action: "%(action_mwl)s"
 fail2ban_sshd_enabled: true
