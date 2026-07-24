@@ -1,0 +1,90 @@
+---
+- name: Install Docker repository prerequisites
+  ansible.builtin.apt:
+    name: "{{ docker_prerequisite_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure apt keyring directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Docker apt signing key
+  ansible.builtin.get_url:
+    url: "{{ docker_apt_key_url }}"
+    dest: "{{ docker_apt_key_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure Docker apt repository
+  ansible.builtin.apt_repository:
+    repo: "{{ docker_apt_repository }}"
+    filename: docker
+    state: present
+    update_cache: true
+
+- name: Install Docker engine and plugins
+  ansible.builtin.apt:
+    name: "{{ docker_packages }}"
+    state: "{{ docker_package_state }}"
+
+- name: Control Docker package upgrades
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: "{{ 'hold' if docker_package_hold else 'install' }}"
+  loop: "{{ docker_packages }}"
+
+- name: Add admin user to docker group
+  ansible.builtin.user:
+    name: "{{ docker_admin_user }}"
+    groups: docker
+    append: true
+
+- name: Ensure Docker configuration directory exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure Docker daemon log rotation
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+    content: "{{ docker_daemon_config | to_nice_json }}\n"
+  notify: Restart Docker
+
+- name: Ensure Docker systemd override directory exists
+  ansible.builtin.file:
+    path: "{{ docker_systemd_override_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Disable remote Docker API access
+  ansible.builtin.template:
+    src: docker-local-unix-socket.conf.j2
+    dest: "{{ docker_systemd_override_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart Docker
+
+- name: Enable Docker service
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+    daemon_reload: true

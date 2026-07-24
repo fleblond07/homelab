@@ -1,0 +1,7 @@
+---
+- name: Install and configure Docker
+  hosts: homelab
+  become: true
+  roles:
+    - role: docker
+      tags: [docker, containers]

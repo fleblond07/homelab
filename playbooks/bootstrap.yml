@@ -18,6 +18,8 @@
       tags: [storage, smart, disk-alerts]
     - role: logging
       tags: [logging]
+    - role: docker
+      tags: [docker, containers]
     - role: ssh_hardening
       tags: [ssh, hardening]
     - role: ssh
