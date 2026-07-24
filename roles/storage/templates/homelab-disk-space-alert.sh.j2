@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+PATH_TO_CHECK="{{ storage_disk_alert_path }}"
+WARNING_PERCENT="{{ storage_disk_alert_warning_percent }}"
+CRITICAL_PERCENT="{{ storage_disk_alert_critical_percent }}"
+EMAIL_TO="{{ storage_disk_alert_email_to }}"
+DISCORD_WEBHOOK_URL="{{ storage_disk_alert_discord_webhook_url }}"
+
+usage_percent="$(df -P "$PATH_TO_CHECK" | awk 'NR == 2 { gsub("%", "", $5); print $5 }')"
+host="$(hostname -f 2>/dev/null || hostname)"
+
+if [ "$usage_percent" -ge "$CRITICAL_PERCENT" ]; then
+  severity="CRITICAL"
+elif [ "$usage_percent" -ge "$WARNING_PERCENT" ]; then
+  severity="WARNING"
+else
+  exit 0
+fi
+
+message="[$severity] $host disk usage is ${usage_percent}% on $PATH_TO_CHECK"
+logger -t homelab-disk-space-alert "$message"
+
+if [ -n "$EMAIL_TO" ] && command -v mail >/dev/null 2>&1; then
+  printf '%s\n' "$message" | mail -s "$message" "$EMAIL_TO"
+fi
+
+if [ -n "$DISCORD_WEBHOOK_URL" ] && command -v curl >/dev/null 2>&1; then
+  curl -fsS \
+    -H "Content-Type: application/json" \
+    -d "{\"content\":\"$message\"}" \
+    "$DISCORD_WEBHOOK_URL" >/dev/null
+fi

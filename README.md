@@ -70,9 +70,21 @@ ansible-playbook playbooks/ssh_hardening.yml
 ansible-playbook playbooks/ssh.yml
 ansible-playbook playbooks/fail2ban.yml
 ansible-playbook playbooks/firewall.yml
+ansible-playbook playbooks/storage.yml
 ```
 
 Bootstrap roles are tagged, so a focused run can use tags such as `time`,
 `ntp`, `packages`, `python`, `tools`, `security`, `updates`,
 `unattended-upgrades`, `services`, `logging`, `hardening`, `ssh`, `fail2ban`,
-or `firewall`.
+`firewall`, `storage`, `smart`, or `disk-alerts`.
+
+## Storage
+
+The storage playbook prepares `/srv/homelab`, configures SMART monitoring, and
+enables a local disk-space alert timer:
+
+```bash
+ansible-playbook playbooks/storage.yml
+```
+
+See `docs/storage.md` for the layout, alert channels, and replacement notes.

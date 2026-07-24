@@ -1,0 +1,17 @@
+---
+- name: Restart smartmontools
+  ansible.builtin.systemd:
+    name: smartmontools
+    state: restarted
+  when: storage_smartd_enabled
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart disk space timer
+  ansible.builtin.systemd:
+    name: homelab-disk-space-alert.timer
+    state: restarted
+    enabled: true
+  when: storage_disk_alert_enabled

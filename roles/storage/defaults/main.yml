@@ -1,0 +1,89 @@
+---
+storage_root: /srv/homelab
+
+storage_user: hl_apps
+storage_group: hl_apps
+storage_uid: 2000
+storage_gid: 2000
+
+storage_packages:
+  - smartmontools
+  - curl
+
+storage_directories:
+  - path: "{{ storage_root }}"
+    owner: root
+    group: root
+    mode: "0755"
+  - path: "{{ storage_root }}/compose"
+    owner: root
+    group: "{{ storage_group }}"
+    mode: "0755"
+  - path: "{{ storage_root }}/config"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/data"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/data/mariadb"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/data/wordpress"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/data/wordpress/site1"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/data/wordpress/site2"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/data/nextcloud"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/data/vaultwarden"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/data/monitoring"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/data/media"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/backups-staging"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/logs"
+    owner: "{{ storage_user }}"
+    group: "{{ storage_group }}"
+    mode: "0750"
+  - path: "{{ storage_root }}/secrets"
+    owner: root
+    group: "{{ storage_group }}"
+    mode: "0750"
+
+storage_smartd_enabled: true
+storage_smartd_mail_to: root
+storage_smartd_scan_directive: >-
+  DEVICESCAN -a -o on -S on -n standby,q
+  -s (S/../.././03|L/../../6/04)
+  -W 4,45,55
+  -m {{ storage_smartd_mail_to }}
+
+storage_disk_alert_enabled: true
+storage_disk_alert_path: "{{ storage_root }}"
+storage_disk_alert_warning_percent: 80
+storage_disk_alert_critical_percent: 90
+storage_disk_alert_on_calendar: hourly
+storage_disk_alert_email_to: ""
+storage_disk_alert_discord_webhook_url: ""

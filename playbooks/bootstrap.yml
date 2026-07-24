@@ -14,6 +14,8 @@
       tags: [security, updates, unattended-upgrades]
     - role: system_services
       tags: [services]
+    - role: storage
+      tags: [storage, smart, disk-alerts]
     - role: logging
       tags: [logging]
     - role: ssh_hardening

@@ -1,0 +1,91 @@
+---
+- name: Install storage monitoring packages
+  ansible.builtin.apt:
+    name: "{{ storage_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure homelab storage group exists with explicit GID
+  ansible.builtin.group:
+    name: "{{ storage_group }}"
+    gid: "{{ storage_gid }}"
+    state: present
+
+- name: Ensure homelab storage user exists with explicit UID
+  ansible.builtin.user:
+    name: "{{ storage_user }}"
+    uid: "{{ storage_uid }}"
+    group: "{{ storage_group }}"
+    shell: /usr/sbin/nologin
+    create_home: false
+    system: true
+    state: present
+
+- name: Create homelab storage directory tree
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ storage_directories }}"
+
+- name: Configure SMART daemon scan policy
+  ansible.builtin.template:
+    src: smartd.conf.j2
+    dest: /etc/smartd.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart smartmontools
+  when: storage_smartd_enabled
+
+- name: Enable SMART daemon
+  ansible.builtin.systemd:
+    name: smartmontools
+    enabled: true
+    state: started
+  when: storage_smartd_enabled
+
+- name: Install disk-space alert script
+  ansible.builtin.template:
+    src: homelab-disk-space-alert.sh.j2
+    dest: /usr/local/sbin/homelab-disk-space-alert
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart disk space timer
+  when: storage_disk_alert_enabled
+
+- name: Install disk-space alert service
+  ansible.builtin.template:
+    src: homelab-disk-space-alert.service.j2
+    dest: /etc/systemd/system/homelab-disk-space-alert.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart disk space timer
+  when: storage_disk_alert_enabled
+
+- name: Install disk-space alert timer
+  ansible.builtin.template:
+    src: homelab-disk-space-alert.timer.j2
+    dest: /etc/systemd/system/homelab-disk-space-alert.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart disk space timer
+  when: storage_disk_alert_enabled
+
+- name: Enable disk-space alert timer
+  ansible.builtin.systemd:
+    name: homelab-disk-space-alert.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: storage_disk_alert_enabled

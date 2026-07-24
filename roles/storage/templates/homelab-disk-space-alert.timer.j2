@@ -1,0 +1,9 @@
+[Unit]
+Description=Run homelab disk-space alert check
+
+[Timer]
+OnCalendar={{ storage_disk_alert_on_calendar }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target
