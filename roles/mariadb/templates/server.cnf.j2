@@ -1,0 +1,18 @@
+[mariadb]
+character-set-server = {{ mariadb_character_set_server }}
+collation-server = {{ mariadb_collation_server }}
+skip-character-set-client-handshake
+skip-name-resolve
+
+max_connections = {{ mariadb_max_connections }}
+table_open_cache = {{ mariadb_table_open_cache }}
+innodb_buffer_pool_size = {{ mariadb_innodb_buffer_pool_size }}
+innodb_log_file_size = {{ mariadb_innodb_log_file_size }}
+
+slow_query_log = {{ 'ON' if mariadb_slow_query_log_enabled else 'OFF' }}
+slow_query_log_file = {{ mariadb_slow_query_log_file }}
+long_query_time = {{ mariadb_slow_query_time }}
+log_queries_not_using_indexes = OFF
+
+[client]
+default-character-set = {{ mariadb_character_set_server }}

@@ -1,0 +1,33 @@
+services:
+  mariadb:
+    image: {{ mariadb_image }}
+    container_name: {{ mariadb_name }}
+    restart: {{ mariadb_restart_policy }}
+    environment:
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/mariadb_root_password
+      TZ: {{ mariadb_timezone }}
+    secrets:
+      - mariadb_root_password
+    volumes:
+      - {{ mariadb_data_dir }}:/var/lib/mysql
+      - {{ mariadb_config_dir }}/server.cnf:/etc/mysql/conf.d/99-homelab.cnf:ro
+      - {{ mariadb_log_dir }}:/var/log/mysql
+    networks:
+      - homelab-db
+    mem_limit: {{ mariadb_memory_limit }}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mariadb-admin ping -uroot -p"$$(cat /run/secrets/mariadb_root_password)" --silent
+      interval: {{ mariadb_healthcheck_interval }}
+      timeout: {{ mariadb_healthcheck_timeout }}
+      retries: {{ mariadb_healthcheck_retries }}
+      start_period: {{ mariadb_healthcheck_start_period }}
+
+secrets:
+  mariadb_root_password:
+    file: {{ mariadb_root_password_file }}
+
+networks:
+  homelab-db:
+    name: homelab-db

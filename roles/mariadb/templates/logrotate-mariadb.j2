@@ -1,0 +1,9 @@
+{{ mariadb_log_dir }}/*.log {
+    daily
+    rotate {{ mariadb_logrotate_retention }}
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+}

@@ -1,0 +1,7 @@
+---
+- name: Deploy MariaDB
+  hosts: homelab
+  become: true
+  roles:
+    - role: mariadb
+      tags: [mariadb, database]
