@@ -1,0 +1,57 @@
+{
+{% if caddy_email | length > 0 %}
+	email {{ caddy_email }}
+{% endif %}
+	admin localhost:2019
+}
+
+{% for service in caddy_public_services %}
+{% if service.hosts is defined %}
+{% set service_hosts = service.hosts %}
+{% else %}
+{% set service_hosts = [service.host] %}
+{% endif %}
+{% set header_profile = service.security_profile | default('default') %}
+{% set security_headers = caddy_security_header_profiles[header_profile] | combine(service.security_headers | default({})) %}
+{{ service_hosts | join(', ') }} {
+	encode zstd gzip
+
+	log {
+		output file /data/logs/{{ service.name }}.access.log {
+			roll_size {{ service.access_log_roll_size | default(caddy_access_log_roll_size) }}
+			roll_keep {{ service.access_log_roll_keep | default(caddy_access_log_roll_keep) }}
+			roll_keep_for {{ service.access_log_roll_keep_for | default(caddy_access_log_roll_keep_for) }}
+		}
+		format json
+	}
+
+	header {
+{% for header_name, header_value in security_headers.items() %}
+		{{ header_name }} "{{ header_value }}"
+{% endfor %}
+		-Server
+	}
+
+{% if service.request_body_max_size | default(caddy_default_request_body_max_size) %}
+	request_body {
+		max_size {{ service.request_body_max_size | default(caddy_default_request_body_max_size) }}
+	}
+
+{% endif %}
+	reverse_proxy {{ service.upstreams | join(' ') }} {
+{% if service.health_uri is defined %}
+		health_uri {{ service.health_uri }}
+		health_interval {{ service.health_interval | default(caddy_upstream_health_interval) }}
+		health_timeout {{ service.health_timeout | default(caddy_upstream_health_timeout) }}
+{% endif %}
+		fail_duration {{ service.fail_duration | default(caddy_upstream_fail_duration) }}
+		transport http {
+			dial_timeout {{ service.dial_timeout | default(caddy_upstream_dial_timeout) }}
+			response_header_timeout {{ service.response_header_timeout | default(caddy_upstream_response_header_timeout) }}
+			read_timeout {{ service.read_timeout | default(caddy_upstream_read_timeout) }}
+			write_timeout {{ service.write_timeout | default(caddy_upstream_write_timeout) }}
+		}
+	}
+}
+
+{% endfor %}

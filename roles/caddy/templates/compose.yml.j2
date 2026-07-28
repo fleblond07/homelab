@@ -1,0 +1,20 @@
+services:
+  caddy:
+    image: {{ caddy_image }}
+    container_name: {{ caddy_name }}
+    restart: {{ caddy_restart_policy }}
+    environment:
+      TZ: {{ caddy_timezone }}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - {{ caddy_config_dir }}/Caddyfile:/etc/caddy/Caddyfile:ro
+      - {{ caddy_data_dir }}:/data
+      - {{ caddy_config_dir }}:/config
+    networks:
+      - homelab-public
+
+networks:
+  homelab-public:
+    name: homelab-public

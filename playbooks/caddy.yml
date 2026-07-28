@@ -1,0 +1,7 @@
+---
+- name: Deploy Caddy
+  hosts: homelab
+  become: true
+  roles:
+    - role: caddy
+      tags: [caddy, proxy, certificates]

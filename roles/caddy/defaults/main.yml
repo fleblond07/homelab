@@ -1,0 +1,55 @@
+---
+caddy_name: homelab-caddy
+caddy_image: caddy:2.10.0
+caddy_restart_policy: unless-stopped
+
+caddy_storage_root: /srv/homelab
+caddy_compose_dir: "{{ caddy_storage_root }}/compose/caddy"
+caddy_config_dir: "{{ caddy_storage_root }}/config/caddy"
+caddy_data_dir: "{{ caddy_storage_root }}/data/caddy"
+
+caddy_timezone: "{{ timezone | default('UTC') }}"
+caddy_email: ""
+caddy_default_request_body_max_size: 25MB
+
+caddy_access_log_roll_size: 10MiB
+caddy_access_log_roll_keep: 10
+caddy_access_log_roll_keep_for: 720h
+
+caddy_upstream_dial_timeout: 5s
+caddy_upstream_response_header_timeout: 15s
+caddy_upstream_read_timeout: 60s
+caddy_upstream_write_timeout: 60s
+caddy_upstream_health_interval: 30s
+caddy_upstream_health_timeout: 5s
+caddy_upstream_fail_duration: 30s
+
+caddy_certificate_verification_enabled: true
+caddy_http_redirect_verification_enabled: true
+
+caddy_security_header_profiles:
+  default:
+    Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+    X-Content-Type-Options: nosniff
+    X-Frame-Options: SAMEORIGIN
+    Referrer-Policy: strict-origin-when-cross-origin
+    Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+  wordpress:
+    Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+    X-Content-Type-Options: nosniff
+    X-Frame-Options: SAMEORIGIN
+    Referrer-Policy: strict-origin-when-cross-origin
+    Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+  nextcloud:
+    Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+    X-Content-Type-Options: nosniff
+    X-Robots-Tag: noindex, nofollow
+    Referrer-Policy: no-referrer
+  vaultwarden:
+    Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+    X-Content-Type-Options: nosniff
+    X-Frame-Options: DENY
+    Referrer-Policy: no-referrer
+    Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+
+caddy_public_services: []

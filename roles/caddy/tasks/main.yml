@@ -1,0 +1,125 @@
+---
+- name: Ensure Caddy host directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ caddy_compose_dir }}"
+      mode: "0755"
+    - path: "{{ caddy_config_dir }}"
+      mode: "0755"
+    - path: "{{ caddy_data_dir }}"
+      mode: "0755"
+    - path: "{{ caddy_data_dir }}/logs"
+      mode: "0755"
+
+- name: Validate Caddy public service definitions
+  ansible.builtin.assert:
+    that:
+      - item.name is defined
+      - item.upstreams is defined
+      - item.upstreams | length > 0
+      - (item.hosts is defined and item.hosts | length > 0) or item.host is defined
+      - caddy_security_header_profiles[item.security_profile | default('default')] is defined
+    fail_msg: "Each Caddy public service needs name, host or hosts, upstreams, and a known security_profile."
+  loop: "{{ caddy_public_services }}"
+
+- name: Install Caddy Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ caddy_compose_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ caddy_config_dir }}/Caddyfile"
+    owner: root
+    group: root
+    mode: "0644"
+  register: caddy_config_file
+
+- name: Validate rendered Caddy configuration
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - --volume
+      - "{{ caddy_config_dir }}:/etc/caddy:ro"
+      - "{{ caddy_image }}"
+      - caddy
+      - validate
+      - --config
+      - /etc/caddy/Caddyfile
+      - --adapter
+      - caddyfile
+  changed_when: false
+
+- name: Start Caddy with Docker Compose
+  ansible.builtin.command:
+    cmd: docker compose -f {{ caddy_compose_dir }}/compose.yml up -d
+  register: caddy_compose_up
+  changed_when: >-
+    'Created' in (caddy_compose_up.stdout + caddy_compose_up.stderr) or
+    'Recreated' in (caddy_compose_up.stdout + caddy_compose_up.stderr) or
+    'Started' in (caddy_compose_up.stdout + caddy_compose_up.stderr) or
+    'Pulling' in (caddy_compose_up.stdout + caddy_compose_up.stderr)
+
+- name: Reload Caddy when configuration changes
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - "{{ caddy_compose_dir }}/compose.yml"
+      - exec
+      - -T
+      - caddy
+      - caddy
+      - reload
+      - --config
+      - /etc/caddy/Caddyfile
+      - --adapter
+      - caddyfile
+  register: caddy_reload
+  changed_when: caddy_reload.rc == 0
+  when:
+    - caddy_config_file.changed
+    - not caddy_compose_up.changed
+
+- name: Verify Caddy automatic certificates
+  ansible.builtin.find:
+    paths: "{{ caddy_data_dir }}/caddy/certificates"
+    patterns: "{{ (item.hosts if item.hosts is defined else [item.host]) | first }}.crt"
+    recurse: true
+    file_type: file
+  register: caddy_certificate_files
+  changed_when: false
+  retries: 30
+  delay: 10
+  until: caddy_certificate_files.matched > 0
+  loop: "{{ caddy_public_services }}"
+  when:
+    - caddy_certificate_verification_enabled
+    - item.verify_certificate | default(true)
+
+- name: Confirm HTTP redirects to HTTPS
+  ansible.builtin.uri:
+    url: http://127.0.0.1/
+    headers:
+      Host: "{{ (item.hosts if item.hosts is defined else [item.host]) | first }}"
+    follow_redirects: none
+    status_code:
+      - 301
+      - 308
+  changed_when: false
+  loop: "{{ caddy_public_services }}"
+  when:
+    - caddy_http_redirect_verification_enabled
+    - item.verify_http_redirect | default(true)

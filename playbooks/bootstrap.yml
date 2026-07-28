@@ -20,6 +20,8 @@
       tags: [logging]
     - role: docker
       tags: [docker, containers]
+    - role: caddy
+      tags: [caddy, proxy, certificates]
     - role: mariadb
       tags: [mariadb, database]
     - role: ssh_hardening

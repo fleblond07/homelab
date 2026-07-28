@@ -67,6 +67,7 @@ ansible-playbook playbooks/security_updates.yml
 ansible-playbook playbooks/system_services.yml
 ansible-playbook playbooks/logging.yml
 ansible-playbook playbooks/docker.yml
+ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/mariadb.yml
 ansible-playbook playbooks/ssh_hardening.yml
 ansible-playbook playbooks/ssh.yml
@@ -79,7 +80,7 @@ Bootstrap roles are tagged, so a focused run can use tags such as `time`,
 `ntp`, `packages`, `python`, `tools`, `security`, `updates`,
 `unattended-upgrades`, `services`, `logging`, `hardening`, `ssh`, `fail2ban`,
 `firewall`, `storage`, `smart`, `disk-alerts`, `docker`, `containers`,
-`mariadb`, or `database`.
+`caddy`, `proxy`, `certificates`, `mariadb`, or `database`.
 
 ## Storage
 
