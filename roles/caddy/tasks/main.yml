@@ -123,5 +123,5 @@
   changed_when: false
   loop: "{{ caddy_public_services }}"
   when:
-    - caddy_http_redirect_verification_enabled
+    - caddy_http_redirect_verification_enabled | bool
     - item.verify_http_redirect | default(true)

@@ -145,3 +145,4 @@
       }}
   loop: "{{ wordpress_sites }}"
   when: item.caddy_enabled | default(true)
+  tags: [caddy]
