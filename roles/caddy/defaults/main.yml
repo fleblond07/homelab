@@ -24,7 +24,7 @@ caddy_upstream_health_interval: 30s
 caddy_upstream_health_timeout: 5s
 caddy_upstream_fail_duration: 30s
 
-caddy_certificate_verification_enabled: true
+caddy_certificate_verification_enabled: false
 caddy_http_redirect_verification_enabled: true
 
 caddy_security_header_profiles:

@@ -1,0 +1,218 @@
+---
+- name: Set WordPress restore request values
+  ansible.builtin.set_fact:
+    wordpress_restore_requested_date: "{{ (wordpress_site.restore | default({})).date | default(wordpress_restore_date) }}"
+    wordpress_restore_site_bucket: "{{ (wordpress_site.restore | default({})).bucket | default(wordpress_s3_bucket) }}"
+    wordpress_restore_site_prefix: "{{ (wordpress_site.restore | default({})).prefix | default(wordpress_s3_prefix) }}"
+    wordpress_restore_site_passphrase: >-
+      {{ (wordpress_site.restore | default({})).encryption_passphrase | default('') }}
+
+- name: Validate WordPress restore settings
+  ansible.builtin.assert:
+    that:
+      - wordpress_restore_requested_date | length > 0
+      - wordpress_restore_site_bucket | length > 0
+      - wordpress_restore_site_passphrase | length > 0
+    fail_msg: "WordPress restore needs restore.date/latest, restore.bucket, and restore.encryption_passphrase."
+  no_log: true
+
+- name: Set WordPress restore S3 base
+  ansible.builtin.set_fact:
+    wordpress_restore_site_s3_base: >-
+      s3://{{ wordpress_restore_site_bucket }}/{{ (wordpress_restore_site_prefix ~ '/') if wordpress_restore_site_prefix | length > 0 else '' }}
+
+- name: Find latest matching WordPress backup date
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      {{ wordpress_s3_cli }}
+      {% if wordpress_s3_endpoint_url | length > 0 %}--endpoint-url {{ wordpress_s3_endpoint_url }}{% endif %}
+      s3 ls {{ wordpress_restore_site_s3_base | quote }} --recursive |
+      awk -v site={{ wordpress_site.name | quote }} '
+      {
+        name=$4;
+        sub(/^.*\//, "", name);
+        date=substr(name, 1, 10);
+        if (substr(name, 11) == "_" site "_db") db[date]=1;
+        if (substr(name, 11) == "_" site "_files") files[date]=1;
+      }
+      END {
+        for (date in db) {
+          if (files[date]) print date;
+        }
+      }' |
+      sort |
+      tail -n 1
+    executable: /bin/bash
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ wordpress_s3_access_key_id | default(omit) }}"
+    AWS_SECRET_ACCESS_KEY: "{{ wordpress_s3_secret_access_key | default(omit) }}"
+    AWS_DEFAULT_REGION: "{{ wordpress_s3_region | default(omit) }}"
+  register: wordpress_restore_latest_date
+  changed_when: false
+  failed_when: wordpress_restore_latest_date.stdout | length == 0
+  when: wordpress_restore_requested_date == "latest"
+  no_log: true
+
+- name: Set latest WordPress restore date
+  ansible.builtin.set_fact:
+    wordpress_restore_site_date: "{{ wordpress_restore_latest_date.stdout }}"
+  when: wordpress_restore_requested_date == "latest"
+
+- name: Set explicit WordPress restore date
+  ansible.builtin.set_fact:
+    wordpress_restore_site_date: "{{ wordpress_restore_requested_date }}"
+  when: wordpress_restore_requested_date != "latest"
+
+- name: Set WordPress restore object keys
+  ansible.builtin.set_fact:
+    wordpress_restore_site_files_key: >-
+      {{ (wordpress_site.restore | default({})).files_key
+         | default(wordpress_restore_site_date ~ '_' ~ wordpress_site.name ~ '_files') }}
+    wordpress_restore_site_db_key: >-
+      {{ (wordpress_site.restore | default({})).db_key
+         | default(wordpress_restore_site_date ~ '_' ~ wordpress_site.name ~ '_db') }}
+    wordpress_restore_site_marker: "{{ wordpress_restore_root }}/{{ wordpress_site.name }}/.restore-{{ wordpress_restore_site_date }}"
+
+- name: Set WordPress restore paths
+  ansible.builtin.set_fact:
+    wordpress_restore_site_passphrase_file: "{{ wordpress_secret_root }}/{{ wordpress_site.name }}-backup-passphrase"
+    wordpress_restore_files_encrypted_path: "{{ wordpress_restore_root }}/{{ wordpress_site.name }}/files.enc"
+    wordpress_restore_db_encrypted_path: "{{ wordpress_restore_root }}/{{ wordpress_site.name }}/db.enc"
+    wordpress_restore_files_archive_path: "{{ wordpress_restore_root }}/{{ wordpress_site.name }}/files.tar"
+    wordpress_restore_db_compressed: >-
+      {{ (wordpress_site.restore | default({})).db_compressed | default(wordpress_restore_db_compressed) }}
+
+- name: Store WordPress site backup passphrase
+  ansible.builtin.copy:
+    dest: "{{ wordpress_restore_site_passphrase_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+    content: "{{ wordpress_restore_site_passphrase }}\n"
+  no_log: true
+
+- name: Set compressed WordPress database restore path
+  ansible.builtin.set_fact:
+    wordpress_restore_db_dump_path: "{{ wordpress_restore_root }}/{{ wordpress_site.name }}/db.sql.gz"
+  when: wordpress_restore_db_compressed | bool
+
+- name: Set plain WordPress database restore path
+  ansible.builtin.set_fact:
+    wordpress_restore_db_dump_path: "{{ wordpress_restore_root }}/{{ wordpress_site.name }}/db.sql"
+  when: not wordpress_restore_db_compressed | bool
+
+- name: Check WordPress restore marker
+  ansible.builtin.stat:
+    path: "{{ wordpress_restore_site_marker }}"
+  register: wordpress_restore_marker
+
+- name: Download encrypted WordPress files backup
+  ansible.builtin.command:
+    cmd: >-
+      {{ wordpress_s3_cli }}
+      {% if wordpress_s3_endpoint_url | length > 0 %}--endpoint-url {{ wordpress_s3_endpoint_url }}{% endif %}
+      s3 cp
+      {{ wordpress_restore_site_s3_base }}{{ wordpress_restore_site_files_key }}
+      {{ wordpress_restore_files_encrypted_path }}
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ wordpress_s3_access_key_id | default(omit) }}"
+    AWS_SECRET_ACCESS_KEY: "{{ wordpress_s3_secret_access_key | default(omit) }}"
+    AWS_DEFAULT_REGION: "{{ wordpress_s3_region | default(omit) }}"
+  changed_when: true
+  when: wordpress_restore_force | bool or not wordpress_restore_marker.stat.exists
+  no_log: true
+
+- name: Download encrypted WordPress database backup
+  ansible.builtin.command:
+    cmd: >-
+      {{ wordpress_s3_cli }}
+      {% if wordpress_s3_endpoint_url | length > 0 %}--endpoint-url {{ wordpress_s3_endpoint_url }}{% endif %}
+      s3 cp
+      {{ wordpress_restore_site_s3_base }}{{ wordpress_restore_site_db_key }}
+      {{ wordpress_restore_db_encrypted_path }}
+  environment:
+    AWS_ACCESS_KEY_ID: "{{ wordpress_s3_access_key_id | default(omit) }}"
+    AWS_SECRET_ACCESS_KEY: "{{ wordpress_s3_secret_access_key | default(omit) }}"
+    AWS_DEFAULT_REGION: "{{ wordpress_s3_region | default(omit) }}"
+  changed_when: true
+  when: wordpress_restore_force | bool or not wordpress_restore_marker.stat.exists
+  no_log: true
+
+- name: Decrypt WordPress files backup
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      {{
+        ((wordpress_site.restore | default({})).files_decrypt_command | default(wordpress_restore_files_decrypt_command))
+        | replace('{passphrase_file}', wordpress_restore_site_passphrase_file | quote)
+        | replace('{src}', wordpress_restore_files_encrypted_path | quote)
+        | replace('{dest}', wordpress_restore_files_archive_path | quote)
+      }}
+    executable: /bin/bash
+  changed_when: true
+  when: wordpress_restore_force | bool or not wordpress_restore_marker.stat.exists
+  no_log: true
+
+- name: Decrypt WordPress database backup
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      {{
+        ((wordpress_site.restore | default({})).db_decrypt_command | default(wordpress_restore_db_decrypt_command))
+        | replace('{passphrase_file}', wordpress_restore_site_passphrase_file | quote)
+        | replace('{src}', wordpress_restore_db_encrypted_path | quote)
+        | replace('{dest}', wordpress_restore_db_dump_path | quote)
+      }}
+    executable: /bin/bash
+  changed_when: true
+  when: wordpress_restore_force | bool or not wordpress_restore_marker.stat.exists
+  no_log: true
+
+- name: Extract WordPress files backup
+  ansible.builtin.unarchive:
+    src: "{{ wordpress_restore_files_archive_path }}"
+    dest: "{{ wordpress_data_root }}/{{ wordpress_site.name }}"
+    remote_src: true
+    owner: "{{ wordpress_uid }}"
+    group: "{{ wordpress_gid }}"
+    extra_opts:
+      - --strip-components
+      - "{{ (wordpress_site.restore | default({})).strip_components | default(wordpress_restore_strip_components) }}"
+  when: wordpress_restore_force | bool or not wordpress_restore_marker.stat.exists
+
+- name: Import compressed WordPress database backup
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      gunzip -c {{ wordpress_restore_db_dump_path | quote }} |
+      docker compose -f {{ wordpress_mariadb_compose_dir }}/compose.yml exec -T mariadb
+      sh -c 'mariadb -uroot -p"$(cat /run/secrets/mariadb_root_password)" {{ wordpress_site.database_name }}'
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - wordpress_restore_force | bool or not wordpress_restore_marker.stat.exists
+    - wordpress_restore_db_compressed | bool
+  no_log: true
+
+- name: Import plain WordPress database backup
+  ansible.builtin.shell:
+    cmd: >-
+      docker compose -f {{ wordpress_mariadb_compose_dir }}/compose.yml exec -T mariadb
+      sh -c 'mariadb -uroot -p"$(cat /run/secrets/mariadb_root_password)" {{ wordpress_site.database_name }}'
+      < {{ wordpress_restore_db_dump_path | quote }}
+    executable: /bin/bash
+  changed_when: true
+  when:
+    - wordpress_restore_force | bool or not wordpress_restore_marker.stat.exists
+    - not wordpress_restore_db_compressed | bool
+  no_log: true
+
+- name: Write WordPress restore marker
+  ansible.builtin.copy:
+    dest: "{{ wordpress_restore_site_marker }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: "{{ ansible_date_time.iso8601 }}\n"
+  when: wordpress_restore_force | bool or not wordpress_restore_marker.stat.exists

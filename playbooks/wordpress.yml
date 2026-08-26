@@ -1,0 +1,7 @@
+---
+- name: Deploy WordPress sites
+  hosts: homelab
+  become: true
+  roles:
+    - role: wordpress
+      tags: [wordpress, websites, restore]

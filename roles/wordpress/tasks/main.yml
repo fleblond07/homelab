@@ -1,0 +1,147 @@
+---
+- name: Validate WordPress has at least one site
+  ansible.builtin.assert:
+    that:
+      - wordpress_sites | length > 0
+    fail_msg: "wordpress_sites is empty. Put the vault variables under inventories/production/group_vars/all/ so they load for homelab."
+
+- name: Validate WordPress site definitions
+  ansible.builtin.assert:
+    that:
+      - item.name is defined
+      - item.name is match('^[a-z0-9][a-z0-9_-]*$')
+      - item.database_name is defined
+      - item.database_name is match('^[A-Za-z0-9_]+$')
+      - item.database_user is defined
+      - item.database_user is match('^[A-Za-z0-9_]+$')
+      - item.database_password is defined
+      - item.table_prefix is defined
+      - item.table_prefix is match('^[A-Za-z0-9_]+$')
+      - item.auth_keys is defined
+      - item.auth_keys.AUTH_KEY is defined
+      - item.auth_keys.SECURE_AUTH_KEY is defined
+      - item.auth_keys.LOGGED_IN_KEY is defined
+      - item.auth_keys.NONCE_KEY is defined
+      - item.auth_keys.AUTH_SALT is defined
+      - item.auth_keys.SECURE_AUTH_SALT is defined
+      - item.auth_keys.LOGGED_IN_SALT is defined
+      - item.auth_keys.NONCE_SALT is defined
+      - (item.hosts is defined and item.hosts | length > 0) or item.host is defined
+    fail_msg: "Each WordPress site needs name, host/hosts, database settings, table_prefix, and all WordPress auth salts."
+  loop: "{{ wordpress_sites }}"
+  no_log: true
+
+- name: Install WordPress restore packages
+  ansible.builtin.apt:
+    name: "{{ wordpress_restore_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when: >-
+    wordpress_restore_enabled | bool or
+    (wordpress_sites | selectattr('restore', 'defined') | list | length > 0)
+
+- name: Ensure WordPress host directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ wordpress_compose_dir }}"
+    - "{{ wordpress_config_root }}"
+    - "{{ wordpress_secret_root }}"
+    - "{{ wordpress_restore_root }}"
+
+- name: Ensure WordPress site directories exist
+  ansible.builtin.file:
+    path: "{{ item.0 }}/{{ item.1.name }}"
+    state: directory
+    owner: "{{ wordpress_uid }}"
+    group: "{{ wordpress_gid }}"
+    mode: "0750"
+  loop: "{{ [wordpress_data_root, wordpress_config_root, wordpress_restore_root] | product(wordpress_sites) | list }}"
+
+- name: Create WordPress databases and users
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - "{{ wordpress_mariadb_compose_dir }}/compose.yml"
+      - exec
+      - -T
+      - mariadb
+      - sh
+      - -c
+      - >-
+        mariadb -uroot -p"$(cat /run/secrets/mariadb_root_password)"
+        -e "CREATE DATABASE IF NOT EXISTS \`{{ item.database_name }}\`
+        CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+        CREATE USER IF NOT EXISTS '{{ item.database_user }}'@'%'
+        IDENTIFIED BY '{{ item.database_password | replace("'", "''") }}';
+        ALTER USER '{{ item.database_user }}'@'%'
+        IDENTIFIED BY '{{ item.database_password | replace("'", "''") }}';
+        GRANT ALL PRIVILEGES ON \`{{ item.database_name }}\`.*
+        TO '{{ item.database_user }}'@'%';
+        FLUSH PRIVILEGES;"
+  changed_when: false
+  loop: "{{ wordpress_sites }}"
+  no_log: true
+
+- name: Install WordPress wp-config files
+  ansible.builtin.template:
+    src: wp-config.php.j2
+    dest: "{{ wordpress_config_root }}/{{ item.name }}/wp-config.php"
+    owner: "{{ wordpress_uid }}"
+    group: "{{ wordpress_gid }}"
+    mode: "0640"
+  loop: "{{ wordpress_sites }}"
+  no_log: true
+
+- name: Restore WordPress sites from backup
+  ansible.builtin.include_tasks: restore.yml
+  loop: "{{ wordpress_sites }}"
+  loop_control:
+    loop_var: wordpress_site
+    label: "{{ wordpress_site.name }}"
+  when: wordpress_restore_enabled | bool or (wordpress_site.restore | default({})).enabled | default(false)
+
+- name: Install WordPress Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ wordpress_compose_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Start WordPress with Docker Compose
+  ansible.builtin.command:
+    cmd: docker compose -f {{ wordpress_compose_dir }}/compose.yml up -d
+  register: wordpress_compose_up
+  changed_when: >-
+    'Created' in (wordpress_compose_up.stdout + wordpress_compose_up.stderr) or
+    'Recreated' in (wordpress_compose_up.stdout + wordpress_compose_up.stderr) or
+    'Started' in (wordpress_compose_up.stdout + wordpress_compose_up.stderr) or
+    'Pulling' in (wordpress_compose_up.stdout + wordpress_compose_up.stderr)
+
+- name: Register WordPress sites for Caddy  # noqa: var-naming[no-role-prefix]
+  ansible.builtin.set_fact:
+    caddy_public_services: >-
+      {{
+        caddy_public_services | default([]) + [
+          {
+            'name': 'wordpress-' ~ item.name,
+            'hosts': item.hosts | default([item.host]),
+            'upstreams': [item.container_name | default('homelab-wordpress-' ~ item.name) ~ ':80'],
+            'security_profile': 'wordpress',
+            'request_body_max_size': item.request_body_max_size | default(wordpress_php_post_max_size),
+            'verify_certificate': item.verify_certificate | default(true),
+            'verify_http_redirect': item.verify_http_redirect | default(true)
+          }
+        ]
+      }}
+  loop: "{{ wordpress_sites }}"
+  when: item.caddy_enabled | default(true)

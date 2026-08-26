@@ -20,10 +20,12 @@
       tags: [logging]
     - role: docker
       tags: [docker, containers]
-    - role: caddy
-      tags: [caddy, proxy, certificates]
     - role: mariadb
       tags: [mariadb, database]
+    - role: wordpress
+      tags: [wordpress, websites, restore]
+    - role: caddy
+      tags: [caddy, proxy, certificates]
     - role: ssh_hardening
       tags: [ssh, hardening]
     - role: ssh

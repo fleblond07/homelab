@@ -1,0 +1,49 @@
+---
+wordpress_sites: []
+
+wordpress_storage_root: /srv/homelab
+wordpress_compose_dir: "{{ wordpress_storage_root }}/compose/wordpress"
+wordpress_data_root: "{{ wordpress_storage_root }}/data/wordpress"
+wordpress_config_root: "{{ wordpress_storage_root }}/config/wordpress"
+wordpress_secret_root: "{{ wordpress_storage_root }}/secrets/wordpress"
+wordpress_restore_root: "{{ wordpress_storage_root }}/backups-staging/wordpress"
+
+# TODO: Add renovate
+wordpress_image: wordpress:6.8.2-php8.3-apache
+wordpress_restart_policy: unless-stopped
+wordpress_timezone: "{{ timezone | default('UTC') }}"
+wordpress_php_memory_limit: 256M
+wordpress_php_post_max_size: 64M
+
+wordpress_uid: "33"
+wordpress_gid: "33"
+
+wordpress_mariadb_compose_dir: "{{ mariadb_compose_dir | default('/srv/homelab/compose/mariadb') }}"
+wordpress_database_host: "{{ mariadb_name | default('homelab-mariadb') }}"
+
+wordpress_restore_enabled: false
+wordpress_restore_force: false
+wordpress_restore_date: ""
+wordpress_restore_db_compressed: true
+wordpress_restore_strip_components: 0
+
+wordpress_s3_cli: aws
+wordpress_s3_bucket: ""
+wordpress_s3_prefix: ""
+wordpress_s3_endpoint_url: ""
+wordpress_s3_region: ""
+wordpress_s3_access_key_id: ""
+wordpress_s3_secret_access_key: ""
+
+wordpress_restore_packages:
+  - awscli
+  - gpg
+  - gzip
+  - tar
+
+wordpress_restore_files_decrypt_command: >-
+  gpg --batch --yes --passphrase-file {passphrase_file}
+  --output {dest} --decrypt {src}
+wordpress_restore_db_decrypt_command: >-
+  gpg --batch --yes --passphrase-file {passphrase_file}
+  --output {dest} --decrypt {src}

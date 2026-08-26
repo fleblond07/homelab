@@ -1,0 +1,32 @@
+<?php
+define('DB_NAME', {{ item.database_name | to_json }});
+define('DB_USER', {{ item.database_user | to_json }});
+define('DB_PASSWORD', {{ item.database_password | to_json }});
+define('DB_HOST', {{ item.database_host | default(wordpress_database_host) | to_json }});
+define('DB_CHARSET', 'utf8mb4');
+define('DB_COLLATE', '');
+
+{% set salts = item.auth_keys %}
+define('AUTH_KEY',         {{ salts.AUTH_KEY | to_json }});
+define('SECURE_AUTH_KEY',  {{ salts.SECURE_AUTH_KEY | to_json }});
+define('LOGGED_IN_KEY',    {{ salts.LOGGED_IN_KEY | to_json }});
+define('NONCE_KEY',        {{ salts.NONCE_KEY | to_json }});
+define('AUTH_SALT',        {{ salts.AUTH_SALT | to_json }});
+define('SECURE_AUTH_SALT', {{ salts.SECURE_AUTH_SALT | to_json }});
+define('LOGGED_IN_SALT',   {{ salts.LOGGED_IN_SALT | to_json }});
+define('NONCE_SALT',       {{ salts.NONCE_SALT | to_json }});
+
+$table_prefix = {{ item.table_prefix | to_json }};
+
+define('WP_DEBUG', {{ 'true' if item.debug | default(false) else 'false' }});
+define('DISALLOW_FILE_EDIT', true);
+
+{% for constant_name, constant_value in item.extra_constants | default({}) | dictsort %}
+define('{{ constant_name }}', {{ constant_value | to_json }});
+{% endfor %}
+
+if (!defined('ABSPATH')) {
+    define('ABSPATH', __DIR__ . '/');
+}
+
+require_once ABSPATH . 'wp-settings.php';
