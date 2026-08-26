@@ -1,0 +1,16 @@
+services:
+  flb-dev:
+    image: {{ flb_dev_image | to_json }}
+    container_name: {{ flb_dev_container_name | to_json }}
+    restart: {{ flb_dev_restart_policy | to_json }}
+    build:
+      context: {{ flb_dev_source_dir | to_json }}
+    environment:
+      TZ: {{ flb_dev_timezone | to_json }}
+      PORT: {{ flb_dev_port | string | to_json }}
+    networks:
+      - homelab-public
+
+networks:
+  homelab-public:
+    external: true

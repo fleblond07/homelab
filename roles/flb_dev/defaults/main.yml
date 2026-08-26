@@ -1,0 +1,23 @@
+---
+flb_dev_name: flb-dev
+flb_dev_repo_url: https://github.com/fleblond07/flb.dev.git
+flb_dev_repo_version: main
+flb_dev_container_name: homelab-flb-dev
+flb_dev_image: homelab/flb-dev:latest
+flb_dev_restart_policy: unless-stopped
+
+flb_dev_storage_root: /srv/homelab
+flb_dev_compose_dir: "{{ flb_dev_storage_root }}/compose/flb-dev"
+flb_dev_source_dir: "{{ flb_dev_storage_root }}/apps/flb-dev"
+
+flb_dev_host: flb.dev
+flb_dev_hosts:
+  - "{{ flb_dev_host }}"
+flb_dev_port: 8080
+flb_dev_timezone: "{{ timezone | default('UTC') }}"
+
+flb_dev_caddy_enabled: true
+flb_dev_caddy_service_name: flb-dev
+flb_dev_caddy_security_profile: default
+flb_dev_caddy_verify_certificate: false
+flb_dev_caddy_verify_http_redirect: true

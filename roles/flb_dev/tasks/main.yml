@@ -1,0 +1,59 @@
+---
+- name: Ensure flb.dev host directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ flb_dev_compose_dir }}"
+    - "{{ flb_dev_source_dir | dirname }}"
+
+- name: Clone or update flb.dev source
+  ansible.builtin.git:
+    repo: "{{ flb_dev_repo_url }}"
+    dest: "{{ flb_dev_source_dir }}"
+    version: "{{ flb_dev_repo_version }}"
+    update: true
+  register: flb_dev_git_checkout
+
+- name: Install flb.dev Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ flb_dev_compose_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  register: flb_dev_compose_file
+
+- name: Start flb.dev with Docker Compose
+  ansible.builtin.command:
+    cmd: docker compose -f {{ flb_dev_compose_dir }}/compose.yml up -d --build
+  register: flb_dev_compose_up
+  changed_when: >-
+    flb_dev_git_checkout.changed or
+    flb_dev_compose_file.changed or
+    'Created' in (flb_dev_compose_up.stdout + flb_dev_compose_up.stderr) or
+    'Recreated' in (flb_dev_compose_up.stdout + flb_dev_compose_up.stderr) or
+    'Started' in (flb_dev_compose_up.stdout + flb_dev_compose_up.stderr) or
+    'Building' in (flb_dev_compose_up.stdout + flb_dev_compose_up.stderr) or
+    'Pulling' in (flb_dev_compose_up.stdout + flb_dev_compose_up.stderr)
+
+- name: Register flb.dev for Caddy  # noqa: var-naming[no-role-prefix]
+  ansible.builtin.set_fact:
+    caddy_public_services: >-
+      {{
+        caddy_public_services | default([]) + [
+          {
+            'name': flb_dev_caddy_service_name,
+            'hosts': flb_dev_hosts,
+            'upstreams': [flb_dev_container_name ~ ':' ~ flb_dev_port],
+            'security_profile': flb_dev_caddy_security_profile,
+            'verify_certificate': flb_dev_caddy_verify_certificate,
+            'verify_http_redirect': flb_dev_caddy_verify_http_redirect
+          }
+        ]
+      }}
+  when: flb_dev_caddy_enabled | bool
+  tags: [caddy]

@@ -24,6 +24,8 @@
       tags: [mariadb, database]
     - role: wordpress
       tags: [wordpress, websites, restore]
+    - role: flb_dev
+      tags: [flb-dev, app, caddy]
     - role: caddy
       tags: [caddy, proxy, certificates]
     - role: ssh_hardening

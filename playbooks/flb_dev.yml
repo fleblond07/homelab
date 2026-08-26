@@ -1,0 +1,9 @@
+---
+- name: Deploy flb.dev
+  hosts: homelab
+  become: true
+  roles:
+    - role: flb_dev
+      tags: [flb-dev, app, caddy]
+    - role: caddy
+      tags: [caddy, proxy, certificates]
