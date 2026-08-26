@@ -10,7 +10,7 @@ flb_dev_storage_root: /srv/homelab
 flb_dev_compose_dir: "{{ flb_dev_storage_root }}/compose/flb-dev"
 flb_dev_source_dir: "{{ flb_dev_storage_root }}/apps/flb-dev"
 
-flb_dev_host: flb.dev
+flb_dev_host: flavienleblond.com
 flb_dev_hosts:
   - "{{ flb_dev_host }}"
 flb_dev_port: 8080
