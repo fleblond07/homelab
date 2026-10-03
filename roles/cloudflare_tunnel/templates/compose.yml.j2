@@ -1,0 +1,30 @@
+services:
+  cloudflared:
+    image: {{ cloudflare_tunnel_image | to_json }}
+    container_name: {{ cloudflare_tunnel_container_name | to_json }}
+    restart: unless-stopped
+    user: {{ (cloudflare_tunnel_uid ~ ':' ~ cloudflare_tunnel_gid) | to_json }}
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --metrics
+      - 0.0.0.0:2000
+      - run
+      - --token-file
+      - /run/secrets/tunnel-token
+    volumes:
+      - {{ (cloudflare_tunnel_secret_dir ~ '/token:/run/secrets/tunnel-token:ro') | to_json }}
+    ports:
+      - {{ ('127.0.0.1:' ~ cloudflare_tunnel_metrics_port ~ ':2000') | to_json }}
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - tunnel-origin
+
+networks:
+  tunnel-origin:
+    external: true
+    name: {{ cloudflare_tunnel_network | to_json }}

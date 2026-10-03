@@ -99,6 +99,9 @@
     mode: "0640"
   loop: "{{ wordpress_sites }}"
   no_log: true
+  tags: [wordpress-config]
+  register: wordpress_config_files
+  notify: Recreate WordPress containers after configuration changes
 
 - name: Restore WordPress sites from backup
   ansible.builtin.include_tasks: restore.yml

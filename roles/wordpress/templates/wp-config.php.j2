@@ -21,6 +21,12 @@ $table_prefix = {{ item.table_prefix | to_json }};
 define('WP_DEBUG', {{ 'true' if item.debug | default(false) else 'false' }});
 define('DISALLOW_FILE_EDIT', true);
 
+// HTTPS terminates at the reverse proxy; WordPress receives HTTP internally.
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
+    in_array('https', array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_PROTO'])), true)) {
+    $_SERVER['HTTPS'] = 'on';
+}
+
 {% for constant_name, constant_value in item.extra_constants | default({}) | dictsort %}
 define('{{ constant_name }}', {{ constant_value | to_json }});
 {% endfor %}

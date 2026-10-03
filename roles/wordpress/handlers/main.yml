@@ -1,0 +1,7 @@
+---
+- name: Recreate WordPress containers after configuration changes
+  ansible.builtin.command:
+    argv: >-
+      {{ ['docker', 'compose', '-f', wordpress_compose_dir ~ '/compose.yml', 'up', '-d', '--force-recreate']
+         + (wordpress_config_files.results | selectattr('changed') | map(attribute='item.name') | list) }}
+  changed_when: true

@@ -1,0 +1,79 @@
+---
+- name: Validate Cloudflare Tunnel token
+  ansible.builtin.assert:
+    that:
+      - cloudflare_tunnel_token is string
+      - cloudflare_tunnel_token | trim | length > 0
+    fail_msg: "Set cloudflare_tunnel_token in inventories/production/group_vars/all/vault.yml."
+  no_log: true
+
+- name: Ensure Cloudflare Tunnel directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - "{{ cloudflare_tunnel_compose_dir }}"
+    - "{{ cloudflare_tunnel_secret_dir }}"
+
+- name: Store Cloudflare Tunnel token
+  ansible.builtin.copy:
+    dest: "{{ cloudflare_tunnel_secret_dir }}/token"
+    content: "{{ cloudflare_tunnel_token | trim }}\n"
+    owner: root
+    group: "{{ cloudflare_tunnel_gid }}"
+    mode: "0640"
+  register: cloudflare_tunnel_token_file
+  no_log: true
+
+- name: Ensure Cloudflare Tunnel origin network exists
+  ansible.builtin.command:
+    argv: [docker, network, inspect, "{{ cloudflare_tunnel_network }}"]
+  register: cloudflare_tunnel_network_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Create Cloudflare Tunnel origin network
+  ansible.builtin.command:
+    argv: [docker, network, create, "{{ cloudflare_tunnel_network }}"]
+  when: cloudflare_tunnel_network_check.rc != 0
+  changed_when: true
+
+- name: Install Cloudflare Tunnel Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ cloudflare_tunnel_compose_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Validate Cloudflare Tunnel Compose file
+  ansible.builtin.command:
+    argv: [docker, compose, -f, "{{ cloudflare_tunnel_compose_dir }}/compose.yml", config, --quiet]
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Start Cloudflare Tunnel
+  ansible.builtin.command:
+    argv: >-
+      {{ ['docker', 'compose', '-f', cloudflare_tunnel_compose_dir ~ '/compose.yml', 'up', '-d']
+         + (['--force-recreate'] if cloudflare_tunnel_token_file.changed else []) }}
+  register: cloudflare_tunnel_compose_up
+  changed_when: >-
+    'Created' in (cloudflare_tunnel_compose_up.stdout + cloudflare_tunnel_compose_up.stderr) or
+    'Recreated' in (cloudflare_tunnel_compose_up.stdout + cloudflare_tunnel_compose_up.stderr) or
+    'Started' in (cloudflare_tunnel_compose_up.stdout + cloudflare_tunnel_compose_up.stderr)
+
+- name: Wait for Cloudflare Tunnel connection
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ cloudflare_tunnel_metrics_port }}/ready"
+    status_code: 200
+    use_proxy: false
+  register: cloudflare_tunnel_ready
+  until: cloudflare_tunnel_ready.status | default(0) == 200
+  retries: "{{ cloudflare_tunnel_wait_retries }}"
+  delay: "{{ cloudflare_tunnel_wait_delay }}"
+  when: not ansible_check_mode

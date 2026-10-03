@@ -69,6 +69,7 @@ ansible-playbook playbooks/logging.yml
 ansible-playbook playbooks/docker.yml
 ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/mariadb.yml
+ansible-playbook playbooks/cloudflare_tunnel.yml --ask-vault-pass
 ansible-playbook playbooks/ssh_hardening.yml
 ansible-playbook playbooks/ssh.yml
 ansible-playbook playbooks/fail2ban.yml
@@ -81,6 +82,11 @@ Bootstrap roles are tagged, so a focused run can use tags such as `time`,
 `unattended-upgrades`, `services`, `logging`, `hardening`, `ssh`, `fail2ban`,
 `firewall`, `storage`, `smart`, `disk-alerts`, `docker`, `containers`,
 `caddy`, `proxy`, `certificates`, `mariadb`, or `database`.
+
+## Cloudflare Tunnel
+
+For public websites through Cloudflare Tunnel, see
+[the setup and migration guide](docs/cloudflare-tunnel.md).
 
 ## Storage
 
