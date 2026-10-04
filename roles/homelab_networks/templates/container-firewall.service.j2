@@ -1,0 +1,13 @@
+[Unit]
+Description=Restrict Docker containers from accessing the homelab LAN and host
+Requires=docker.service
+After=docker.service ufw.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+ExecStart={{ homelab_networks_script }}
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target docker.service

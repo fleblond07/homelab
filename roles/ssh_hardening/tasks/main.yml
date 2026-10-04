@@ -8,7 +8,7 @@
 - name: Configure SSH hardening
   ansible.builtin.template:
     src: 99-z-homelab-hardening.conf.j2
-    dest: /etc/ssh/sshd_config.d/99-z-homelab-hardening.conf
+    dest: /etc/ssh/sshd_config.d/00-homelab-hardening.conf
     owner: root
     group: root
     mode: "0644"
@@ -17,3 +17,18 @@
 - name: Validate active sshd configuration
   ansible.builtin.command: sshd -t
   changed_when: false
+
+- name: Read effective SSH configuration
+  ansible.builtin.command: sshd -T
+  register: ssh_hardening_effective_config
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify effective SSH authentication restrictions
+  ansible.builtin.assert:
+    that:
+      - "'passwordauthentication ' ~ ssh_hardening_password_authentication in ssh_hardening_effective_config.stdout_lines"
+      - "'permitrootlogin ' ~ ssh_hardening_permit_root_login in ssh_hardening_effective_config.stdout_lines"
+      - "'kbdinteractiveauthentication ' ~ ssh_hardening_kbd_interactive_authentication in ssh_hardening_effective_config.stdout_lines"
+    fail_msg: "An earlier SSH configuration overrides homelab hardening. Inspect sshd -T before restarting SSH."
+  when: not ansible_check_mode

@@ -53,12 +53,14 @@ sudo -n id
 ## Running the bootstrap
 
 ```bash
-ansible-playbook playbooks/bootstrap.yml
+ansible-playbook playbooks/bootstrap.yml --ask-vault-pass
 ```
 
 The bootstrap playbook configures base packages, timezone/NTP, security
-updates, unused services, logging, SSH, Fail2Ban, and firewalling. Individual
-playbooks are also available when you only want one area:
+updates, unused services, logging, SSH, Fail2Ban, firewalling, isolated application
+networks, and Cloudflare Tunnel. Bootstrap connects to fresh hosts on port 22;
+pass `-e ansible_port=23145` when rerunning it on a configured host.
+Individual playbooks are also available when you only want one area:
 
 ```bash
 ansible-playbook playbooks/base_packages.yml
@@ -81,12 +83,9 @@ Bootstrap roles are tagged, so a focused run can use tags such as `time`,
 `ntp`, `packages`, `python`, `tools`, `security`, `updates`,
 `unattended-upgrades`, `services`, `logging`, `hardening`, `ssh`, `fail2ban`,
 `firewall`, `storage`, `smart`, `disk-alerts`, `docker`, `containers`,
-`caddy`, `proxy`, `certificates`, `mariadb`, or `database`.
+`networks`, `cloudflare`, `tunnel`, `mariadb`, or `database`.
 
-## Cloudflare Tunnel
 
-For public websites through Cloudflare Tunnel, see
-[the setup and migration guide](docs/cloudflare-tunnel.md).
 
 ## Storage
 

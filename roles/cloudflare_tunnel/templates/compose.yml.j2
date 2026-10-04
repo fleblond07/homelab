@@ -3,6 +3,7 @@ services:
     image: {{ cloudflare_tunnel_image | to_json }}
     container_name: {{ cloudflare_tunnel_container_name | to_json }}
     restart: unless-stopped
+    dns: {{ homelab_networks_dns_servers | default(['1.1.1.1', '1.0.0.1']) | to_json }}
     user: {{ (cloudflare_tunnel_uid ~ ':' ~ cloudflare_tunnel_gid) | to_json }}
     command:
       - tunnel
@@ -23,8 +24,18 @@ services:
       - no-new-privileges:true
     networks:
       - tunnel-origin
+      - homelab-flb-dev
+{% for site in wordpress_sites | default([]) %}
+      - {{ ('homelab-wordpress-' ~ site.name) | to_json }}
+{% endfor %}
 
 networks:
   tunnel-origin:
     external: true
     name: {{ cloudflare_tunnel_network | to_json }}
+  homelab-flb-dev:
+    external: true
+{% for site in wordpress_sites | default([]) %}
+  {{ ('homelab-wordpress-' ~ site.name) | to_json }}:
+    external: true
+{% endfor %}

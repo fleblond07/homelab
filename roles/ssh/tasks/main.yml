@@ -49,3 +49,15 @@
     timeout: 30
   become: false
   delegate_to: localhost
+
+- name: Use configured SSH port for subsequent tasks  # noqa: var-naming[no-role-prefix]
+  ansible.builtin.set_fact:
+    ansible_port: "{{ ssh_port }}"
+
+- name: Reconnect with the configured SSH port
+  ansible.builtin.meta: reset_connection
+
+- name: Verify SSH access after applying configuration
+  ansible.builtin.wait_for_connection:
+    timeout: 30
+  when: not ansible_check_mode

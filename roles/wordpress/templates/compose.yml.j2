@@ -4,6 +4,7 @@ services:
     image: {{ site.image | default(wordpress_image) | to_json }}
     container_name: {{ site.container_name | default('homelab-wordpress-' ~ site.name) | to_json }}
     restart: {{ site.restart_policy | default(wordpress_restart_policy) | to_json }}
+    dns: {{ homelab_networks_dns_servers | default(['1.1.1.1', '1.0.0.1']) | to_json }}
     environment:
       TZ: {{ wordpress_timezone | to_json }}
       WORDPRESS_DB_HOST: {{ site.database_host | default(wordpress_database_host) | to_json }}
@@ -18,12 +19,14 @@ services:
       - {{ (wordpress_data_root ~ '/' ~ site.name ~ ':/var/www/html') | to_json }}
       - {{ (wordpress_config_root ~ '/' ~ site.name ~ '/wp-config.php:/var/www/html/wp-config.php:ro') | to_json }}
     networks:
-      - homelab-public
-      - homelab-db
+      - {{ ('homelab-wordpress-' ~ site.name) | to_json }}
+      - homelab-db-internal
 
 {% endfor %}
 networks:
-  homelab-public:
+{% for site in wordpress_sites %}
+  {{ ('homelab-wordpress-' ~ site.name) | to_json }}:
     external: true
-  homelab-db:
+{% endfor %}
+  homelab-db-internal:
     external: true

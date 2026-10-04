@@ -16,7 +16,7 @@ flb_dev_hosts:
 flb_dev_port: 8080
 flb_dev_timezone: "{{ timezone | default('UTC') }}"
 
-flb_dev_caddy_enabled: true
+flb_dev_caddy_enabled: false
 flb_dev_caddy_service_name: flb-dev
 flb_dev_caddy_security_profile: default
 flb_dev_caddy_verify_certificate: false

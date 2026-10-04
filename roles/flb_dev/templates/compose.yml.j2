@@ -3,14 +3,15 @@ services:
     image: {{ flb_dev_image | to_json }}
     container_name: {{ flb_dev_container_name | to_json }}
     restart: {{ flb_dev_restart_policy | to_json }}
+    dns: {{ homelab_networks_dns_servers | default(['1.1.1.1', '1.0.0.1']) | to_json }}
     build:
       context: {{ flb_dev_source_dir | to_json }}
     environment:
       TZ: {{ flb_dev_timezone | to_json }}
       PORT: {{ flb_dev_port | string | to_json }}
     networks:
-      - homelab-public
+      - homelab-flb-dev
 
 networks:
-  homelab-public:
+  homelab-flb-dev:
     external: true

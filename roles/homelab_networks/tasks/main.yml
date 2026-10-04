@@ -1,0 +1,48 @@
+---
+- name: Ensure isolated database network exists
+  ansible.builtin.include_tasks: network.yml
+  vars:
+    homelab_networks_name: homelab-db-internal
+    homelab_networks_internal: true
+
+- name: Ensure per-application Docker networks exist
+  ansible.builtin.include_tasks: network.yml
+  loop: >-
+    {{ ['homelab-flb-dev']
+       + (wordpress_sites | default([]) | map(attribute='name') | map('regex_replace', '^', 'homelab-wordpress-') | list) }}
+  loop_control:
+    loop_var: homelab_networks_name
+
+- name: Install container firewall prerequisites
+  ansible.builtin.apt:
+    name: iptables
+    state: present
+
+- name: Install container firewall script
+  ansible.builtin.template:
+    src: container-firewall.sh.j2
+    dest: "{{ homelab_networks_script }}"
+    owner: root
+    group: root
+    mode: "0750"
+    validate: /bin/bash -n %s
+  notify: Apply container firewall
+
+- name: Install container firewall service
+  ansible.builtin.template:
+    src: container-firewall.service.j2
+    dest: /etc/systemd/system/homelab-container-firewall.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply container firewall
+
+- name: Enable container firewall
+  ansible.builtin.systemd:
+    name: homelab-container-firewall
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Apply pending container firewall changes
+  ansible.builtin.meta: flush_handlers

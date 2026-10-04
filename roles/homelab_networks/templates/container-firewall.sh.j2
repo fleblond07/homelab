@@ -1,0 +1,41 @@
+#!/bin/bash
+set -euo pipefail
+
+# Scope rules to Docker bridge traffic.
+for firewall_cmd in iptables ip6tables; do
+    forward_chain=DOCKER-USER
+    if ! "$firewall_cmd" -w -S "$forward_chain" >/dev/null 2>&1; then
+        # Docker does not create its IPv6 chain when IPv6 networking is disabled.
+        # Fail rather than silently bypassing policy on an unsupported IPv4 backend.
+        if [[ "$firewall_cmd" == iptables ]]; then
+            echo 'Docker DOCKER-USER chain is missing; the iptables backend is required.' >&2
+            exit 1
+        fi
+        forward_chain=FORWARD
+    fi
+    "$firewall_cmd" -w -N HOMELAB-CONTAINER-EGRESS 2>/dev/null || "$firewall_cmd" -w -S HOMELAB-CONTAINER-EGRESS >/dev/null
+    "$firewall_cmd" -w -F HOMELAB-CONTAINER-EGRESS
+    "$firewall_cmd" -w -A HOMELAB-CONTAINER-EGRESS -o br+ -j RETURN
+    "$firewall_cmd" -w -A HOMELAB-CONTAINER-EGRESS -o docker+ -j RETURN
+    if [[ "$firewall_cmd" == iptables ]]; then
+{% for subnet in homelab_networks_blocked_ipv4 %}
+        "$firewall_cmd" -w -A HOMELAB-CONTAINER-EGRESS -d {{ subnet | quote }} -j DROP
+{% endfor %}
+    else
+{% for subnet in homelab_networks_blocked_ipv6 %}
+        "$firewall_cmd" -w -A HOMELAB-CONTAINER-EGRESS -d {{ subnet | quote }} -j DROP
+{% endfor %}
+    fi
+    "$firewall_cmd" -w -A HOMELAB-CONTAINER-EGRESS -j RETURN
+
+    "$firewall_cmd" -w -N HOMELAB-CONTAINER-HOST 2>/dev/null || "$firewall_cmd" -w -S HOMELAB-CONTAINER-HOST >/dev/null
+    "$firewall_cmd" -w -F HOMELAB-CONTAINER-HOST
+    "$firewall_cmd" -w -A HOMELAB-CONTAINER-HOST -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+    "$firewall_cmd" -w -A HOMELAB-CONTAINER-HOST -j DROP
+    for bridge_pattern in br+ docker+; do
+        "$firewall_cmd" -w -C "$forward_chain" -i "$bridge_pattern" -j HOMELAB-CONTAINER-EGRESS 2>/dev/null || \
+            "$firewall_cmd" -w -I "$forward_chain" 1 -i "$bridge_pattern" -j HOMELAB-CONTAINER-EGRESS
+        "$firewall_cmd" -w -C INPUT -i "$bridge_pattern" -j HOMELAB-CONTAINER-HOST 2>/dev/null || \
+            "$firewall_cmd" -w -I INPUT 1 -i "$bridge_pattern" -j HOMELAB-CONTAINER-HOST
+    done
+done
