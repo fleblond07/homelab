@@ -1,0 +1,7 @@
+---
+- name: Configure daily WordPress backups to Backblaze B2
+  hosts: homelab
+  become: true
+  roles:
+    - role: wordpress_backup
+      tags: [backups, wordpress-backup]

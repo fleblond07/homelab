@@ -26,6 +26,8 @@
       tags: [mariadb, database]
     - role: wordpress
       tags: [wordpress, websites, restore]
+    - role: wordpress_backup
+      tags: [backups, wordpress-backup]
     - role: flb_dev
       tags: [flb-dev, app, caddy]
     - role: cloudflare_tunnel

@@ -1,0 +1,21 @@
+---
+# Enable and supply credentials in Ansible Vault.
+wordpress_backup_enabled: false
+wordpress_s3_cli: aws
+wordpress_s3_endpoint_url: ""
+wordpress_s3_region: ""
+wordpress_s3_access_key_id: ""
+wordpress_s3_secret_access_key: ""
+wordpress_s3_bucket: ""  # Fallback; a site's restore.bucket takes precedence.
+wordpress_s3_prefix: wordpress
+wordpress_backup_password: ""
+wordpress_backup_config_dir: /etc/homelab-wordpress-backup
+wordpress_backup_staging_dir: /srv/homelab/backups-staging/wordpress-backup
+wordpress_backup_database_calendar: "*-*-* 03:00:00"
+wordpress_backup_files_calendar: "Sun *-*-* 04:00:00"
+# Number of successful archives retained per site and backup type.
+wordpress_backup_database_keep: 7
+wordpress_backup_files_keep: 4
+wordpress_backup_data_root: "{{ wordpress_data_root | default('/srv/homelab/data/wordpress') }}"
+wordpress_backup_config_root: "{{ wordpress_config_root | default('/srv/homelab/config/wordpress') }}"
+wordpress_backup_database_container: "{{ mariadb_name | default('homelab-mariadb') }}"

@@ -23,27 +23,21 @@ wordpress_database_host: "{{ mariadb_name | default('homelab-mariadb') }}"
 
 wordpress_restore_enabled: false
 wordpress_restore_force: false
-wordpress_restore_date: ""
-wordpress_restore_db_compressed: true
-wordpress_restore_strip_components: 0
+wordpress_restore_date: latest
 
 wordpress_s3_cli: aws
-wordpress_s3_bucket: ""
-wordpress_s3_prefix: ""
 wordpress_s3_endpoint_url: ""
 wordpress_s3_region: ""
 wordpress_s3_access_key_id: ""
 wordpress_s3_secret_access_key: ""
+wordpress_s3_bucket: ""  # Fallback; a site's restore.bucket takes precedence.
+wordpress_s3_prefix: wordpress
 
 wordpress_restore_packages:
   - awscli
   - gpg
   - gzip
   - tar
-
-wordpress_restore_files_decrypt_command: >-
-  gpg --batch --yes --passphrase-file {passphrase_file}
-  --output {dest} --decrypt {src}
-wordpress_restore_db_decrypt_command: >-
-  gpg --batch --yes --passphrase-file {passphrase_file}
-  --output {dest} --decrypt {src}
+  - rsync
+  - python3
+  - util-linux

@@ -20,7 +20,7 @@
 
 ## External Providers
 
-- S3 Backup provider: [OVH](https://www.ovhcloud.com/fr/public-cloud/prices/#439)
+- Backup provider: Backblaze B2, using encrypted archives through the S3-compatible API.
 
 ## Alerting
 
@@ -38,4 +38,3 @@ Backups rules are as below:
 - Wordpress: 7days
 - Database: 24hrs
 - Email: 24hrs
-

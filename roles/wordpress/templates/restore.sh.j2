@@ -1,0 +1,89 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 077
+exec 9>/run/lock/homelab-wordpress-backup.lock
+flock -w 3600 9
+site={{ wordpress_site.name | quote }}
+base={{ ('s3://' ~ ((wordpress_site.restore | default({})).bucket | default(wordpress_s3_bucket)) ~ '/' ~ (wordpress_s3_prefix ~ '/' if wordpress_s3_prefix else '') ~ wordpress_site.name) | quote }}
+endpoint={{ wordpress_s3_endpoint_url | quote }}
+client={{ wordpress_s3_cli | quote }}
+restore_date={{ ((wordpress_site.restore | default({})).date | default(wordpress_restore_date)) | quote }}
+files_key={{ ((wordpress_site.restore | default({})).files_key | default('latest')) | quote }}
+db_key={{ ((wordpress_site.restore | default({})).db_key | default('latest')) | quote }}
+if [[ "$files_key" == latest ]]; then
+    files_key=$("$client" --endpoint-url "$endpoint" s3 ls "$base/files/" | awk -v cutoff="$restore_date" -v site="$site" '{name=$4; day=substr(name, length(site)+8, 10); if (cutoff == "latest" || day <= cutoff) print name}' | sort | tail -n 1)
+fi
+if [[ "$db_key" == latest ]]; then
+    db_key=$("$client" --endpoint-url "$endpoint" s3 ls "$base/database/" | awk -v cutoff="$restore_date" -v site="$site" '{name=$4; day=substr(name, length(site)+11, 10); if (cutoff == "latest" || day <= cutoff) print name}' | sort | tail -n 1)
+fi
+[[ "$files_key" == "$site-files-"*.tar.gz.gpg && "$files_key" != */* ]]
+[[ "$db_key" == "$site-database-"*.tar.gz.gpg && "$db_key" != */* ]]
+marker={{ (wordpress_restore_root ~ '/' ~ wordpress_site.name) | quote }}/.restore-$(printf '%s\n%s' "$files_key" "$db_key" | sha256sum | cut -d ' ' -f 1)
+{% if not wordpress_restore_force | bool %}
+if [[ -f "$marker" ]]; then echo 'Already restored these archives.'; exit 0; fi
+{% endif %}
+work=$(mktemp -d {{ (wordpress_restore_root ~ '/' ~ wordpress_site.name ~ '/restore.XXXXXXXX') | quote }})
+restart_container=''
+cleanup() {
+    rc=$?
+    trap - EXIT
+    if [[ -n "$restart_container" ]]; then docker start "$restart_container" || rc=1; fi
+    rm -rf -- "$work"
+    exit "$rc"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+for kind in files database; do
+    if [[ "$kind" == files ]]; then key="$files_key"; else key="$db_key"; fi
+    "$client" --endpoint-url "$endpoint" s3 cp "$base/$kind/$key" "$work/$kind.gpg" --only-show-errors
+    gpg --batch --yes --pinentry-mode loopback \
+        --passphrase-file {{ (wordpress_secret_root ~ '/' ~ wordpress_site.name ~ '-backup-passphrase') | quote }} \
+        --output "$work/$kind.tar.gz" --decrypt "$work/$kind.gpg"
+    mkdir "$work/$kind"
+    # Restrict archive members to the expected tree and safely extract links/paths.
+    python3 - "$work/$kind.tar.gz" "$work/$kind" "$kind" "$site" <<'PY'
+import sys, tarfile
+from pathlib import PurePosixPath
+archive, target, kind, site = sys.argv[1:]
+with tarfile.open(archive, 'r:gz') as tar:
+    for member in tar.getmembers():
+        parts = PurePosixPath(member.name).parts
+        if not parts or '..' in parts or member.name.startswith('/'):
+            raise ValueError('Unsafe archive path')
+        if kind == 'database':
+            valid = member.name == 'database.sql' and member.isfile()
+        else:
+            valid = parts[0] == site or (member.name == 'wp-config.php' and member.isfile())
+        if not valid:
+            raise ValueError('Unexpected archive member: ' + member.name)
+    def safe_member(member, destination):
+        try:
+            return tarfile.data_filter(member, destination)
+        except (tarfile.AbsoluteLinkError, tarfile.LinkOutsideDestinationError):
+            if not member.issym():
+                raise
+            # Legacy host symlinks cannot work safely on the restored host.
+            print('Skipping external symlink: ' + member.name, file=sys.stderr)
+            return None
+    tar.extractall(target, filter=safe_member)
+PY
+done
+[[ -d "$work/files/$site" && -f "$work/database/database.sql" ]]
+container={{ (wordpress_site.container_name | default('homelab-wordpress-' ~ wordpress_site.name)) | quote }}
+# The container may not yet exist on a fresh machine.
+if docker container inspect "$container" >/dev/null 2>&1; then
+    if [[ $(docker inspect --format '{% raw %}{{.State.Running}}{% endraw %}' "$container") == true ]]; then
+        restart_container="$container"
+        docker stop --time 60 "$container"
+    fi
+fi
+rsync -a --delete "$work/files/$site/" {{ (wordpress_data_root ~ '/' ~ wordpress_site.name ~ '/') | quote }}
+chown -R {{ (wordpress_uid ~ ':' ~ wordpress_gid) | quote }} {{ (wordpress_data_root ~ '/' ~ wordpress_site.name) | quote }}
+# Keep the wp-config.php generated from current Vault values; the old one is in the archive.
+docker exec -i {{ wordpress_database_host | quote }} sh -c \
+    'exec mariadb -uroot -p"$(cat /run/secrets/mariadb_root_password)" "$1"' \
+    sh {{ wordpress_site.database_name | quote }} < "$work/database/database.sql"
+if [[ -n "$restart_container" ]]; then docker start "$restart_container"; restart_container=''; fi
+printf '%s\n%s\n' "$files_key" "$db_key" > "$marker"
+echo 'Restored WordPress files and database.'

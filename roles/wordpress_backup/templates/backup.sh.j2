@@ -1,0 +1,96 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 077
+source {{ (wordpress_backup_config_dir ~ '/environment') | quote }}
+mode=${1:-database}
+[[ "$mode" == database || "$mode" == files ]] || { echo 'Use database or files' >&2; exit 2; }
+exec 9>/run/lock/homelab-wordpress-backup.lock
+flock -w 3600 9
+work=$(mktemp -d {{ (wordpress_backup_staging_dir ~ '/run.XXXXXXXX') | quote }})
+restart_container=''
+cleanup() {
+    rc=$?
+    trap - EXIT
+    if [[ -n "$restart_container" ]]; then
+        docker start "$restart_container" || rc=1
+    fi
+    rm -rf -- "$work"
+    exit "$rc"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+stamp=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+
+{% for site in wordpress_sites %}
+archive="$work/{{ site.name }}-$mode-$stamp.tar.gz.gpg"
+if [[ "$mode" == database ]]; then
+    docker exec {{ wordpress_backup_database_container | quote }} sh -c \
+        'exec mariadb-dump -uroot -p"$(cat /run/secrets/mariadb_root_password)" --single-transaction --routines --events --triggers "$1"' \
+        sh {{ site.database_name | quote }} > "$work/database.sql"
+    tar -czf - -C "$work" database.sql | \
+        gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+        --passphrase-file {{ (wordpress_backup_config_dir ~ '/' ~ site.name ~ '-password') | quote }} --output "$archive"
+    rm -f "$work/database.sql"
+else
+    container={{ (site.container_name | default('homelab-wordpress-' ~ site.name)) | quote }}
+    if [[ $(docker inspect --format '{% raw %}{{.State.Running}}{% endraw %}' "$container") == true ]]; then
+        restart_container="$container"
+        docker stop --time 60 "$container"
+    fi
+    tar -czf - \
+        -C {{ wordpress_backup_data_root | quote }} {{ site.name | quote }} \
+        -C {{ (wordpress_backup_config_root ~ '/' ~ site.name) | quote }} wp-config.php | \
+        gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+        --passphrase-file {{ (wordpress_backup_config_dir ~ '/' ~ site.name ~ '-password') | quote }} --output "$archive"
+    if [[ -n "$restart_container" ]]; then
+        docker start "$restart_container"
+        restart_container=''
+    fi
+fi
+{{ wordpress_s3_cli | quote }} --endpoint-url {{ wordpress_s3_endpoint_url | quote }} s3 cp "$archive" \
+    {{ ('s3://' ~ ((site.restore | default({})).bucket | default(wordpress_s3_bucket)) ~ '/' ~ (wordpress_s3_prefix ~ '/' if wordpress_s3_prefix else '') ~ site.name ~ '/') | quote }}"$mode/$(basename "$archive")" --only-show-errors
+rm -f "$archive"
+echo "Uploaded {{ site.name }} $mode backup."
+# Expire only this site's archives of the successfully uploaded backup type.
+if [[ "$mode" == database ]]; then keep={{ wordpress_backup_database_keep | int }}; else keep={{ wordpress_backup_files_keep | int }}; fi
+python3 - {{ wordpress_s3_cli | quote }} {{ wordpress_s3_endpoint_url | quote }} {{ ((site.restore | default({})).bucket | default(wordpress_s3_bucket)) | quote }} \
+    {{ ((wordpress_s3_prefix ~ '/' if wordpress_s3_prefix else '') ~ site.name ~ '/') | quote }}"$mode/" \
+    {{ site.name | quote }} "$mode" "$keep" "$(basename "$archive")" <<'PY'
+import datetime
+import re
+import sys
+import botocore.session
+
+client, endpoint, bucket, prefix, site, kind, keep, uploaded = sys.argv[1:]
+keep = int(keep)
+if keep < 1:
+    raise ValueError('Retention must keep at least one backup')
+# Use the installed S3 SDK: distro AWS CLI argument parsing can fail on Python 3.14.
+s3 = botocore.session.get_session().create_client('s3', endpoint_url=endpoint)
+# Pagination and version IDs allow permanent
+# deletion on Backblaze/versioned S3 buckets instead of merely hiding objects.
+listing = s3.get_paginator('list_object_versions').paginate(Bucket=bucket, Prefix=prefix).build_full_result()
+objects = listing.get('Versions', []) + listing.get('DeleteMarkers', [])
+pattern = re.compile(re.escape(prefix + site + '-' + kind + '-') +
+                     r'(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z)\.tar\.gz\.gpg')
+keys = set()
+for obj in objects:
+    match = pattern.fullmatch(obj['Key'])
+    if match:
+        datetime.datetime.strptime(match[1], '%Y-%m-%dT%H-%M-%SZ')
+        keys.add(obj['Key'])
+current = prefix + uploaded
+if current not in {obj['Key'] for obj in listing.get('Versions', [])}:
+    raise RuntimeError('Uploaded archive missing from listing; refusing retention cleanup')
+retained = {current}
+retained.update(sorted(keys - {current}, reverse=True)[:keep - 1])
+for obj in objects:
+    if obj['Key'] in keys - retained:
+        request = {'Bucket': bucket, 'Key': obj['Key']}
+        if 'VersionId' in obj:
+            request['VersionId'] = obj['VersionId']
+        s3.delete_object(**request)
+        print('Expired backup: ' + obj['Key'])
+PY
+{% endfor %}

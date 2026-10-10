@@ -1,0 +1,9 @@
+[Unit]
+Description=Scheduled WordPress files backup
+
+[Timer]
+OnCalendar={{ wordpress_backup_files_calendar }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

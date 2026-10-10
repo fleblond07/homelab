@@ -77,6 +77,7 @@ ansible-playbook playbooks/ssh.yml
 ansible-playbook playbooks/fail2ban.yml
 ansible-playbook playbooks/firewall.yml
 ansible-playbook playbooks/storage.yml
+ansible-playbook playbooks/backups.yml --ask-vault-pass
 ```
 
 Bootstrap roles are tagged, so a focused run can use tags such as `time`,
