@@ -1,13 +1,15 @@
 ---
 # Enable and supply credentials in Ansible Vault.
 wordpress_backup_enabled: false
-wordpress_s3_cli: aws
-wordpress_s3_endpoint_url: ""
-wordpress_s3_region: ""
-wordpress_s3_access_key_id: ""
-wordpress_s3_secret_access_key: ""
-wordpress_s3_bucket: ""  # Fallback; a site's restore.bucket takes precedence.
-wordpress_s3_prefix: wordpress
+# Shared with the wordpress role so backup and restore use the same settings.
+wordpress_s3_cli: aws  # noqa: var-naming[no-role-prefix]
+wordpress_s3_endpoint_url: ""  # noqa: var-naming[no-role-prefix]
+wordpress_s3_region: ""  # noqa: var-naming[no-role-prefix]
+wordpress_s3_access_key_id: ""  # noqa: var-naming[no-role-prefix]
+wordpress_s3_secret_access_key: ""  # noqa: var-naming[no-role-prefix]
+# Fallback; a site's restore.bucket takes precedence.
+wordpress_s3_bucket: ""  # noqa: var-naming[no-role-prefix]
+wordpress_s3_prefix: wordpress  # noqa: var-naming[no-role-prefix]
 wordpress_backup_password: ""
 wordpress_backup_config_dir: /etc/homelab-wordpress-backup
 wordpress_backup_staging_dir: /srv/homelab/backups-staging/wordpress-backup
