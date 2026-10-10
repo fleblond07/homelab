@@ -58,7 +58,7 @@ ansible-playbook playbooks/bootstrap.yml --ask-vault-pass
 
 The bootstrap playbook configures base packages, timezone/NTP, security
 updates, unused services, logging, SSH, Fail2Ban, firewalling, isolated application
-networks, and Cloudflare Tunnel. Bootstrap connects to fresh hosts on port 22;
+networks, Cloudflare Tunnel, and Tailscale. Bootstrap connects to fresh hosts on port 22;
 pass `-e ansible_port=23145` when rerunning it on a configured host.
 Individual playbooks are also available when you only want one area:
 
@@ -72,6 +72,7 @@ ansible-playbook playbooks/docker.yml
 ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/mariadb.yml
 ansible-playbook playbooks/cloudflare_tunnel.yml --ask-vault-pass
+ansible-playbook playbooks/tailscale.yml --ask-vault-pass
 ansible-playbook playbooks/ssh_hardening.yml
 ansible-playbook playbooks/ssh.yml
 ansible-playbook playbooks/fail2ban.yml
@@ -85,7 +86,18 @@ Bootstrap roles are tagged, so a focused run can use tags such as `time`,
 `ntp`, `packages`, `python`, `tools`, `security`, `updates`,
 `unattended-upgrades`, `services`, `logging`, `hardening`, `ssh`, `fail2ban`,
 `firewall`, `storage`, `smart`, `disk-alerts`, `docker`, `containers`,
-`networks`, `cloudflare`, `tunnel`, `mariadb`, `database`, or `beer-festival`.
+`networks`, `cloudflare`, `tunnel`, `tailscale`, `vpn`, `mariadb`, `database`, or `beer-festival`.
+
+## Tailscale
+
+The Tailscale role installs the host client from the official stable apt
+repository on Debian/Ubuntu and enables `tailscaled` at boot. Before first
+enrollment, create a short-lived, single-use, non-ephemeral auth key in your
+tailnet and store it as `tailscale_auth_key` using:
+
+```bash
+ansible-vault edit inventories/production/group_vars/all/vault.yml
+```
 
 ## Beer Festival
 

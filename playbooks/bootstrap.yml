@@ -34,6 +34,8 @@
       tags: [beer-festival, app]
     - role: cloudflare_tunnel
       tags: [cloudflare, tunnel]
+    - role: tailscale
+      tags: [tailscale, vpn]
     - role: ssh_hardening
       tags: [ssh, hardening]
     - role: ssh

@@ -1,0 +1,130 @@
+---
+- name: Validate Tailscale platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.distribution in ['Debian', 'Ubuntu']
+      - ansible_facts.distribution_release | length > 0
+    fail_msg: Tailscale requires a supported Debian or Ubuntu release.
+
+- name: Install Tailscale repository prerequisites
+  ansible.builtin.apt:
+    name: [ca-certificates, python3-apt]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure apt keyring directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Tailscale apt signing key
+  ansible.builtin.get_url:
+    url: >-
+      {{ tailscale_apt_base_url }}/{{ ansible_facts.distribution | lower }}/{{ ansible_facts.distribution_release }}.noarmor.gpg
+    dest: "{{ tailscale_apt_key_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Configure Tailscale apt repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [signed-by={{ tailscale_apt_key_path }}] {{ tailscale_apt_base_url }}/{{ ansible_facts.distribution | lower }}
+      {{ ansible_facts.distribution_release }} main
+    filename: tailscale
+    state: present
+    update_cache: true
+
+- name: Install Tailscale
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+
+- name: Enable Tailscale daemon
+  ansible.builtin.systemd:
+    name: tailscaled
+    enabled: true
+    state: started
+
+- name: Connect Tailscale outside check mode
+  when: not ansible_check_mode
+  block:
+    - name: Wait for Tailscale daemon state
+      ansible.builtin.command:
+        argv: [tailscale, status, --json]
+      register: tailscale_status
+      changed_when: false
+      until: >-
+        tailscale_status.rc == 0 and
+        (tailscale_status.stdout | from_json).BackendState in
+        ['NeedsLogin', 'NeedsMachineAuth', 'Stopped', 'Running']
+      retries: "{{ tailscale_wait_retries }}"
+      delay: "{{ tailscale_wait_delay }}"
+
+    - name: Enroll Tailscale only when authentication is required
+      when: (tailscale_status.stdout | from_json).BackendState == 'NeedsLogin'
+      block:
+        - name: Require a Tailscale enrollment key
+          ansible.builtin.assert:
+            that:
+              - tailscale_auth_key is string
+              - tailscale_auth_key | trim | length > 0
+            fail_msg: Set tailscale_auth_key in the encrypted inventory vault before enrolling this host.
+          no_log: true
+
+        - name: Create temporary Tailscale auth key file
+          ansible.builtin.tempfile:
+            state: file
+            prefix: homelab-tailscale-
+          register: tailscale_key_file
+
+        - name: Write Tailscale auth key
+          ansible.builtin.copy:
+            dest: "{{ tailscale_key_file.path }}"
+            content: "{{ tailscale_auth_key | trim }}\n"
+            owner: root
+            group: root
+            mode: "0600"
+          no_log: true
+          diff: false
+
+        - name: Authenticate Tailscale
+          ansible.builtin.command:
+            argv:
+              - tailscale
+              - up
+              - "--auth-key=file:{{ tailscale_key_file.path }}"
+              - "--timeout={{ tailscale_login_timeout }}"
+              - --accept-dns=false
+              - --accept-routes=false
+              - --ssh=false
+          changed_when: true
+          no_log: true
+      always:
+        - name: Remove temporary Tailscale auth key file
+          ansible.builtin.file:
+            path: "{{ tailscale_key_file.path }}"
+            state: absent
+          when: tailscale_key_file.path is defined
+
+    - name: Resume a stopped Tailscale node without reauthentication
+      ansible.builtin.command:
+        argv: [tailscale, up, "--timeout={{ tailscale_login_timeout }}"]
+      when: (tailscale_status.stdout | from_json).BackendState == 'Stopped'
+      changed_when: true
+
+    - name: Wait for Tailscale network connection
+      ansible.builtin.command:
+        argv: [tailscale, status, --json]
+      register: tailscale_ready
+      changed_when: false
+      until: >-
+        tailscale_ready.rc == 0 and
+        (tailscale_ready.stdout | from_json).BackendState == 'Running' and
+        ((tailscale_ready.stdout | from_json).TailscaleIPs | default([]) | length > 0)
+      retries: "{{ tailscale_wait_retries }}"
+      delay: "{{ tailscale_wait_delay }}"

@@ -1,0 +1,7 @@
+---
+- name: Join the homelab to Tailscale
+  hosts: homelab
+  become: true
+  roles:
+    - role: tailscale
+      tags: [tailscale, vpn]

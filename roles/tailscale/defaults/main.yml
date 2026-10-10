@@ -1,0 +1,7 @@
+---
+tailscale_auth_key: ""
+tailscale_apt_key_path: /etc/apt/keyrings/tailscale.gpg
+tailscale_apt_base_url: https://pkgs.tailscale.com/stable
+tailscale_login_timeout: 60s
+tailscale_wait_retries: 12
+tailscale_wait_delay: 5
