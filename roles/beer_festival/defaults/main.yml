@@ -1,0 +1,25 @@
+---
+# Enable in inventory after supplying the secrets in Vault.
+beer_festival_enabled: false
+beer_festival_repo_url: https://github.com/fleblond07/beer-festival.git
+beer_festival_repo_version: main
+beer_festival_storage_root: /srv/homelab
+beer_festival_source_dir: "{{ beer_festival_storage_root }}/apps/beer-festival"
+beer_festival_compose_dir: "{{ beer_festival_storage_root }}/compose/beer-festival"
+beer_festival_data_dir: "{{ beer_festival_storage_root }}/data/beer-festival/postgres"
+beer_festival_project_name: homelab-beer-festival
+beer_festival_postgres_image: postgres:17-alpine
+beer_festival_node_image: node:24-alpine
+beer_festival_backend_image: homelab/beer-festival-backend:latest
+beer_festival_frontend_image: homelab/beer-festival-frontend:latest
+beer_festival_database_name: beer_festival
+beer_festival_database_user: beer_festival
+beer_festival_database_password: ""
+beer_festival_jwt_secret: ""
+beer_festival_admin_email: ""
+beer_festival_admin_password: ""
+beer_festival_api_url: https://api.festival-biere.fr
+beer_festival_allowed_origins:
+  - https://festival-biere.fr
+  - https://www.festival-biere.fr
+beer_festival_wait_timeout: 300

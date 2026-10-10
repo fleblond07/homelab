@@ -8,7 +8,7 @@
 - name: Ensure per-application Docker networks exist
   ansible.builtin.include_tasks: network.yml
   loop: >-
-    {{ ['homelab-flb-dev']
+    {{ ['homelab-flb-dev', 'homelab-beer-festival']
        + (wordpress_sites | default([]) | map(attribute='name') | map('regex_replace', '^', 'homelab-wordpress-') | list) }}
   loop_control:
     loop_var: homelab_networks_name

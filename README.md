@@ -78,13 +78,20 @@ ansible-playbook playbooks/fail2ban.yml
 ansible-playbook playbooks/firewall.yml
 ansible-playbook playbooks/storage.yml
 ansible-playbook playbooks/backups.yml --ask-vault-pass
+ansible-playbook playbooks/beer_festival.yml --ask-vault-pass
 ```
 
 Bootstrap roles are tagged, so a focused run can use tags such as `time`,
 `ntp`, `packages`, `python`, `tools`, `security`, `updates`,
 `unattended-upgrades`, `services`, `logging`, `hardening`, `ssh`, `fail2ban`,
 `firewall`, `storage`, `smart`, `disk-alerts`, `docker`, `containers`,
-`networks`, `cloudflare`, `tunnel`, `mariadb`, or `database`.
+`networks`, `cloudflare`, `tunnel`, `mariadb`, `database`, or `beer-festival`.
+
+## Beer Festival
+
+The Beer Festival role deploys the Go API, Vue frontend and a persistent
+PostgreSQL database. It is included in bootstrap and enabled through inventory
+after supplying its secrets.
 
 
 

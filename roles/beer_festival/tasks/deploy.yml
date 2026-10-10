@@ -1,0 +1,106 @@
+---
+- name: Validate Beer Festival settings
+  ansible.builtin.assert:
+    that:
+      - beer_festival_database_name is match('^[a-zA-Z_][a-zA-Z0-9_]*$')
+      - beer_festival_database_user is match('^[a-zA-Z_][a-zA-Z0-9_]*$')
+      - beer_festival_database_password | length >= 20
+      - beer_festival_jwt_secret | length >= 32
+      - (beer_festival_admin_email | length > 0) == (beer_festival_admin_password | length > 0)
+      - beer_festival_api_url is match('^https?://[^/]+/?$')
+      - beer_festival_allowed_origins | length > 0
+      - "'*' not in beer_festival_allowed_origins"
+    fail_msg: Configure Beer Festival secrets and public origins as described in docs/beer-festival.md.
+  no_log: true
+
+- name: Install source checkout tools
+  ansible.builtin.apt:
+    name: git
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create Beer Festival deployment directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ beer_festival_source_dir | dirname }}"
+    - "{{ beer_festival_compose_dir }}"
+    - "{{ beer_festival_data_dir | dirname }}"
+
+- name: Create persistent PostgreSQL directory without resetting its ownership
+  ansible.builtin.file:
+    path: "{{ beer_festival_data_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Clone or update Beer Festival source
+  ansible.builtin.git:
+    repo: "{{ beer_festival_repo_url }}"
+    dest: "{{ beer_festival_source_dir }}"
+    version: "{{ beer_festival_repo_version }}"
+    update: true
+  register: beer_festival_checkout
+
+- name: Install configurable frontend build
+  ansible.builtin.template:
+    src: frontend.Dockerfile.j2
+    dest: "{{ beer_festival_compose_dir }}/frontend.Dockerfile"
+    owner: root
+    group: root
+    mode: "0644"
+  register: beer_festival_frontend_build
+
+- name: Install Beer Festival Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ beer_festival_compose_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0600"
+  register: beer_festival_compose
+  no_log: true
+
+- name: Validate Beer Festival Compose file
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - "{{ beer_festival_project_name }}"
+      - -f
+      - "{{ beer_festival_compose_dir }}/compose.yml"
+      - config
+      - --quiet
+  changed_when: false
+  when: not ansible_check_mode
+  no_log: true
+
+- name: Check for existing Beer Festival images
+  ansible.builtin.command:
+    argv: [docker, image, inspect, "{{ beer_festival_backend_image }}", "{{ beer_festival_frontend_image }}"]
+  register: beer_festival_images
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Start Beer Festival and wait for healthy services
+  ansible.builtin.command:
+    argv: >-
+      {{ ['docker', 'compose', '--project-name', beer_festival_project_name,
+          '-f', beer_festival_compose_dir ~ '/compose.yml', 'up', '-d',
+          '--wait', '--wait-timeout', beer_festival_wait_timeout | string]
+         + (['--build'] if beer_festival_checkout.changed or beer_festival_frontend_build.changed
+            or beer_festival_compose.changed or beer_festival_images.rc != 0 else []) }}
+  register: beer_festival_up
+  changed_when: >-
+    beer_festival_checkout.changed or beer_festival_frontend_build.changed
+    or beer_festival_compose.changed or beer_festival_images.rc != 0
+    or 'Created' in (beer_festival_up.stdout + beer_festival_up.stderr)
+    or 'Recreated' in (beer_festival_up.stdout + beer_festival_up.stderr)
+    or 'Started' in (beer_festival_up.stdout + beer_festival_up.stderr)
+  when: not ansible_check_mode

@@ -1,0 +1,4 @@
+---
+- name: Deploy Beer Festival when enabled
+  ansible.builtin.include_tasks: deploy.yml
+  when: beer_festival_enabled | bool

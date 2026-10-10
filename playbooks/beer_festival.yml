@@ -1,0 +1,7 @@
+---
+- name: Deploy Beer Festival
+  hosts: homelab
+  become: true
+  roles:
+    - role: beer_festival
+      tags: [beer-festival, app]

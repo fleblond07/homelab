@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: {{ beer_festival_postgres_image | to_json }}
+    container_name: homelab-beer-festival-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: {{ beer_festival_database_name | to_json }}
+      POSTGRES_USER: {{ beer_festival_database_user | to_json }}
+      POSTGRES_PASSWORD: {{ beer_festival_database_password | replace('$', '$$') | to_json }}
+      ADMIN_EMAIL: {{ beer_festival_admin_email | replace('$', '$$') | to_json }}
+      ADMIN_PASSWORD: {{ beer_festival_admin_password | replace('$', '$$') | to_json }}
+    volumes:
+      - {{ (beer_festival_data_dir ~ ':/var/lib/postgresql/data') | to_json }}
+      - {{ (beer_festival_source_dir ~ '/db/init:/docker-entrypoint-initdb.d:ro') | to_json }}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks: [database]
+
+  backend:
+    image: {{ beer_festival_backend_image | to_json }}
+    container_name: homelab-beer-festival-backend
+    restart: unless-stopped
+    build:
+      context: {{ (beer_festival_source_dir ~ '/backend') | to_json }}
+    environment:
+      PORT: "1337"
+      ALLOWED_ORIGINS: {{ beer_festival_allowed_origins | join(',') | to_json }}
+      DATABASE_URL: {{ ('postgres://' ~ beer_festival_database_user ~ ':' ~ (beer_festival_database_password | urlencode | replace('/', '%2F')) ~ '@postgres:5432/' ~ beer_festival_database_name ~ '?sslmode=disable') | replace('$', '$$') | to_json }}
+      JWT_SECRET: {{ beer_festival_jwt_secret | replace('$', '$$') | to_json }}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:1337/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    dns: {{ homelab_networks_dns_servers | default(['1.1.1.1', '1.0.0.1']) | to_json }}
+    networks: [database, origin]
+
+  frontend:
+    image: {{ beer_festival_frontend_image | to_json }}
+    container_name: homelab-beer-festival-frontend
+    restart: unless-stopped
+    build:
+      context: {{ (beer_festival_source_dir ~ '/frontend') | to_json }}
+      dockerfile: {{ (beer_festival_compose_dir ~ '/frontend.Dockerfile') | to_json }}
+      args:
+        VITE_API_URL: {{ beer_festival_api_url | to_json }}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:1338/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    networks: [origin]
+
+networks:
+  database:
+    internal: true
+  origin:
+    external: true
+    name: homelab-beer-festival

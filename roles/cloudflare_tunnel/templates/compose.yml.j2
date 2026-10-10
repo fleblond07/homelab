@@ -25,6 +25,7 @@ services:
     networks:
       - tunnel-origin
       - homelab-flb-dev
+      - homelab-beer-festival
 {% for site in wordpress_sites | default([]) %}
       - {{ ('homelab-wordpress-' ~ site.name) | to_json }}
 {% endfor %}
@@ -34,6 +35,8 @@ networks:
     external: true
     name: {{ cloudflare_tunnel_network | to_json }}
   homelab-flb-dev:
+    external: true
+  homelab-beer-festival:
     external: true
 {% for site in wordpress_sites | default([]) %}
   {{ ('homelab-wordpress-' ~ site.name) | to_json }}:

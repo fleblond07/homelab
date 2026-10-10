@@ -29,7 +29,11 @@ docker_packages:
 docker_package_state: present
 docker_package_hold: true
 
+# Build containers need reachable DNS too; service-level DNS does not cover builds.
+docker_dns_servers: "{{ homelab_networks_dns_servers | default(['1.1.1.1', '1.0.0.1']) }}"
+
 docker_daemon_config:
+  dns: "{{ docker_dns_servers }}"
   log-driver: json-file
   log-opts:
     max-size: 10m

@@ -54,7 +54,7 @@
     group: root
     mode: "0755"
 
-- name: Configure Docker daemon log rotation
+- name: Configure Docker daemon DNS and log rotation
   ansible.builtin.copy:
     dest: /etc/docker/daemon.json
     owner: root
@@ -88,3 +88,6 @@
     enabled: true
     state: started
     daemon_reload: true
+
+- name: Apply Docker configuration before building application images
+  ansible.builtin.meta: flush_handlers

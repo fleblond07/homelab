@@ -30,6 +30,8 @@
       tags: [backups, wordpress-backup]
     - role: flb_dev
       tags: [flb-dev, app, caddy]
+    - role: beer_festival
+      tags: [beer-festival, app]
     - role: cloudflare_tunnel
       tags: [cloudflare, tunnel]
     - role: ssh_hardening

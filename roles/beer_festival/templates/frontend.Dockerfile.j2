@@ -1,0 +1,16 @@
+FROM {{ beer_festival_node_image }} AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY . .
+# Process environment overrides the repository's VPS-specific .env.prod URL.
+ARG VITE_API_URL
+RUN VITE_API_URL="$VITE_API_URL" npm run build
+
+FROM {{ beer_festival_node_image }}
+WORKDIR /app
+RUN npm install --ignore-scripts -g serve && adduser -D beer-festival
+COPY --from=build /app/dist ./dist
+USER beer-festival
+EXPOSE 1338
+CMD ["serve", "-s", "dist", "-l", "1338"]
