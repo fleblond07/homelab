@@ -15,6 +15,7 @@ for firewall_cmd in iptables ip6tables; do
     fi
     "$firewall_cmd" -w -N HOMELAB-CONTAINER-EGRESS 2>/dev/null || "$firewall_cmd" -w -S HOMELAB-CONTAINER-EGRESS >/dev/null
     "$firewall_cmd" -w -F HOMELAB-CONTAINER-EGRESS
+    "$firewall_cmd" -w -A HOMELAB-CONTAINER-EGRESS -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
     "$firewall_cmd" -w -A HOMELAB-CONTAINER-EGRESS -o br+ -j RETURN
     "$firewall_cmd" -w -A HOMELAB-CONTAINER-EGRESS -o docker+ -j RETURN
     if [[ "$firewall_cmd" == iptables ]]; then

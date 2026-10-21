@@ -10,14 +10,19 @@ client={{ wordpress_s3_cli | quote }}
 restore_date={{ ((wordpress_site.restore | default({})).date | default(wordpress_restore_date)) | quote }}
 files_key={{ ((wordpress_site.restore | default({})).files_key | default('latest')) | quote }}
 db_key={{ ((wordpress_site.restore | default({})).db_key | default('latest')) | quote }}
+trap 'echo "restore.sh failed at line $LINENO: $BASH_COMMAND" >&2' ERR
+list_archives() {
+    # `s3 ls` exits 1 without output when the prefix is empty or missing.
+    "$client" --endpoint-url "$endpoint" s3 ls "$1" || { echo "No archives found at $1" >&2; return 1; }
+}
 if [[ "$files_key" == latest ]]; then
-    files_key=$("$client" --endpoint-url "$endpoint" s3 ls "$base/files/" | awk -v cutoff="$restore_date" -v site="$site" '{name=$4; day=substr(name, length(site)+8, 10); if (cutoff == "latest" || day <= cutoff) print name}' | sort | tail -n 1)
+    files_key=$(list_archives "$base/files/" | awk -v cutoff="$restore_date" -v site="$site" '{name=$4; if (index(name, site "-files-") != 1) next; day=substr(name, length(site)+8, 10); if (cutoff == "latest" || day <= cutoff) print name}' | sort | tail -n 1)
 fi
 if [[ "$db_key" == latest ]]; then
-    db_key=$("$client" --endpoint-url "$endpoint" s3 ls "$base/database/" | awk -v cutoff="$restore_date" -v site="$site" '{name=$4; day=substr(name, length(site)+11, 10); if (cutoff == "latest" || day <= cutoff) print name}' | sort | tail -n 1)
+    db_key=$(list_archives "$base/database/" | awk -v cutoff="$restore_date" -v site="$site" '{name=$4; if (index(name, site "-database-") != 1) next; day=substr(name, length(site)+11, 10); if (cutoff == "latest" || day <= cutoff) print name}' | sort | tail -n 1)
 fi
-[[ "$files_key" == "$site-files-"*.tar.gz.gpg && "$files_key" != */* ]]
-[[ "$db_key" == "$site-database-"*.tar.gz.gpg && "$db_key" != */* ]]
+[[ "$files_key" == "$site-files-"*.tar.gz.gpg && "$files_key" != */* ]] || { echo "No $site-files-*.tar.gz.gpg in $base/files/ (got '$files_key')" >&2; exit 1; }
+[[ "$db_key" == "$site-database-"*.tar.gz.gpg && "$db_key" != */* ]] || { echo "No $site-database-*.tar.gz.gpg in $base/database/ (got '$db_key')" >&2; exit 1; }
 marker={{ (wordpress_restore_root ~ '/' ~ wordpress_site.name) | quote }}/.restore-$(printf '%s\n%s' "$files_key" "$db_key" | sha256sum | cut -d ' ' -f 1)
 {% if not wordpress_restore_force | bool %}
 if [[ -f "$marker" ]]; then echo 'Already restored these archives.'; exit 0; fi
@@ -36,7 +41,16 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 for kind in files database; do
     if [[ "$kind" == files ]]; then key="$files_key"; else key="$db_key"; fi
-    "$client" --endpoint-url "$endpoint" s3 cp "$base/$kind/$key" "$work/$kind.gpg" --only-show-errors
+    # Large downloads can be reset mid-stream by B2; retry before giving up.
+    for attempt in 1 2 3 4 5; do
+        if "$client" --endpoint-url "$endpoint" s3 cp "$base/$kind/$key" "$work/$kind.gpg" --only-show-errors; then
+            break
+        fi
+        [[ "$attempt" -lt 5 ]] || { echo "Download of $kind archive failed after $attempt attempts" >&2; exit 1; }
+        echo "Download of $kind archive failed (attempt $attempt), retrying..." >&2
+        rm -f "$work/$kind.gpg"
+        sleep $((attempt * 10))
+    done
     gpg --batch --yes --pinentry-mode loopback \
         --passphrase-file {{ (wordpress_secret_root ~ '/' ~ wordpress_site.name ~ '-backup-passphrase') | quote }} \
         --output "$work/$kind.tar.gz" --decrypt "$work/$kind.gpg"

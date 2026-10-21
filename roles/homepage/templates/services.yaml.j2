@@ -1,0 +1,29 @@
+{% if wordpress_sites | default([]) | length > 0 %}
+- WordPress:
+{% for site in wordpress_sites %}
+{% set host = (site.hosts | first) if site.hosts is defined else site.host %}
+    - {{ site.name | to_json }}:
+        href: {{ ('https://' ~ host) | to_json }}
+        siteMonitor: {{ site.homepage_monitor_url | default('https://' ~ host) | to_json }}
+{% endfor %}
+{% endif %}
+- Applications:
+{% set flb_host = (flb_dev_hosts | first) if flb_dev_hosts is defined else flb_dev_host | default('flavienleblond.com') %}
+    - flb.dev:
+        href: {{ ('https://' ~ flb_host) | to_json }}
+        siteMonitor: {{ homepage_flb_dev_monitor_url | default('https://' ~ flb_host) | to_json }}
+{% if beer_festival_enabled | default(false) | bool %}
+{% set beer_api = beer_festival_api_url | default('https://api.festival-biere.fr') %}
+{% set beer_frontend = beer_festival_allowed_origins | default(['https://festival-biere.fr']) | first %}
+    - Beer Festival API:
+        href: {{ beer_api | to_json }}
+        siteMonitor: {{ (beer_api | regex_replace('/$', '') ~ '/health') | to_json }}
+    - Beer Festival:
+        href: {{ beer_frontend | to_json }}
+        siteMonitor: {{ beer_frontend | to_json }}
+{% endif %}
+{% for service in homepage_extra_services %}
+    - {{ service.name | to_json }}:
+        href: {{ service.href | to_json }}
+        siteMonitor: {{ service.monitor_url | default(service.href) | to_json }}
+{% endfor %}

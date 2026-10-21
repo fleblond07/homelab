@@ -42,9 +42,13 @@
         AWS_ACCESS_KEY_ID: "{{ wordpress_s3_access_key_id }}"
         AWS_SECRET_ACCESS_KEY: "{{ wordpress_s3_secret_access_key }}"
         AWS_DEFAULT_REGION: "{{ wordpress_s3_region | default('') }}"
+        AWS_RETRY_MODE: adaptive
+        AWS_MAX_ATTEMPTS: "10"
       register: wordpress_restore_result
       changed_when: "'Restored WordPress files and database.' in wordpress_restore_result.stdout"
-      no_log: true
+      # Credentials are passed via environment, which is not included in the result;
+      # keeping output visible makes S3/gpg failures diagnosable.
+      no_log: false
 
   always:
     - name: Remove temporary backup passphrase

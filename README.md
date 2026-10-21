@@ -73,6 +73,7 @@ ansible-playbook playbooks/caddy.yml
 ansible-playbook playbooks/mariadb.yml
 ansible-playbook playbooks/cloudflare_tunnel.yml --ask-vault-pass
 ansible-playbook playbooks/tailscale.yml --ask-vault-pass
+ansible-playbook playbooks/homepage.yml --ask-vault-pass
 ansible-playbook playbooks/ssh_hardening.yml
 ansible-playbook playbooks/ssh.yml
 ansible-playbook playbooks/fail2ban.yml
@@ -98,6 +99,16 @@ tailnet and store it as `tailscale_auth_key` using:
 ```bash
 ansible-vault edit inventories/production/group_vars/all/vault.yml
 ```
+
+## Homepage dashboard
+
+Homepage is included in bootstrap, after Tailscale enrollment. To deploy or
+update it separately on an existing Docker/Tailscale host:
+
+```bash
+ansible-playbook playbooks/homepage.yml --ask-vault-pass
+```
+Open `https://homelab.<tailnet-host>.ts.net`
 
 ## Beer Festival
 

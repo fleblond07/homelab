@@ -1,0 +1,46 @@
+services:
+  homepage:
+    image: {{ homepage_image | to_json }}
+    container_name: homelab-homepage
+    restart: unless-stopped
+    user: {{ (homepage_uid ~ ':' ~ homepage_gid) | to_json }}
+    environment:
+      TZ: {{ timezone | default('UTC') | to_json }}
+      HOMEPAGE_ALLOWED_HOSTS: {{ ([homepage_hostname, homepage_hostname ~ ':443', 'localhost:' ~ homepage_port, '127.0.0.1:' ~ homepage_port] + homepage_allowed_hosts) | join(',') | to_json }}
+      LOG_TARGETS: stdout
+    ports:
+      - {{ ('127.0.0.1:' ~ homepage_port ~ ':3000') | to_json }}
+    volumes:
+      - {{ (homepage_config_dir ~ ':/app/config') | to_json }}
+{% for disk in homepage_disks %}
+      - {{ ((disk.path | regex_replace('/$', '')) ~ '/.homepage-disk-metrics:/host/disks/' ~ loop.index0 ~ ':ro') | to_json }}
+{% endfor %}
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    dns: {{ homelab_networks_dns_servers | default(['1.1.1.1', '1.0.0.1']) | to_json }}
+    networks: [metrics, egress]
+    depends_on:
+      glances:
+        condition: service_healthy
+
+  glances:
+    image: {{ homepage_glances_image | to_json }}
+    container_name: homelab-glances
+    restart: unless-stopped
+    pid: host
+    environment:
+      GLANCES_OPT: "-w --disable-webui --disable-process --disable-plugin docker"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    networks: [metrics]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:61208/api/4/cpu', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  metrics:
+    internal: true
+  egress: {}

@@ -1,0 +1,9 @@
+---
+- name: Deploy the private homelab dashboard
+  hosts: homelab
+  become: true
+  roles:
+    - role: homelab_networks
+      tags: [homepage, monitoring]
+    - role: homepage
+      tags: [homepage, monitoring]

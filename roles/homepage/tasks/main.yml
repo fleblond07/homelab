@@ -1,0 +1,175 @@
+---
+- name: Discover the Tailscale hostname for Homepage
+  ansible.builtin.command:
+    argv: [tailscale, status, --json]
+  register: homepage_tailscale_status
+  changed_when: false
+  check_mode: false
+
+- name: Select Homepage hostname
+  ansible.builtin.set_fact:
+    homepage_hostname: "{{ (homepage_tailscale_status.stdout | from_json).Self.DNSName | regex_replace('\\.$', '') }}"
+
+- name: Validate Homepage configuration
+  ansible.builtin.assert:
+    that:
+      - (homepage_tailscale_status.stdout | from_json).BackendState == 'Running'
+      - homepage_hostname is match('^[a-zA-Z0-9.-]+\.ts\.net$')
+      - homepage_port | int > 0
+      - homepage_port | int < 65536
+      - homepage_disks | length > 0
+    fail_msg: Homepage requires a connected Tailscale node with a MagicDNS hostname and a valid backend port.
+
+- name: Inspect existing Tailscale Serve configuration
+  ansible.builtin.command:
+    argv: [tailscale, serve, status, --json]
+  register: homepage_serve_status
+  changed_when: false
+  check_mode: false
+
+- name: Select Homepage HTTPS route
+  ansible.builtin.set_fact:
+    homepage_serve_config: "{{ homepage_serve_status.stdout | from_json | default({}, true) }}"
+    homepage_serve_endpoint: "{{ homepage_hostname }}:443"
+    homepage_proxy_target: "http://127.0.0.1:{{ homepage_port }}"
+
+- name: Preserve other services and keep Homepage private
+  ansible.builtin.assert:
+    that:
+      - not homepage_serve_config.get('AllowFunnel', {}).get(homepage_serve_endpoint, false)
+      - homepage_serve_config.get('TCP', {}).get('443', {}).get('HTTPS', true)
+      - >-
+        homepage_serve_config.get('Web', {}).get(homepage_serve_endpoint, {}).get('Handlers', {}).get('/', {}).get('Proxy', '')
+        in ['', homepage_proxy_target]
+      - >-
+        homepage_serve_config.get('Web', {}).get(homepage_serve_endpoint, {}).get('Handlers', {}).get('/', {}).keys() | list
+        | difference(['Proxy']) | length == 0
+    fail_msg: Tailscale port 443 already serves another application or has public Funnel enabled; resolve that route before deploying Homepage.
+
+- name: Validate Homepage disk definitions
+  ansible.builtin.assert:
+    that:
+      - item.label is defined
+      - item.path is defined
+      - item.path is match('^/')
+      - "':' not in item.path"
+    fail_msg: Each disk needs a label and an absolute host mount path.
+  loop: "{{ homepage_disks }}"
+
+- name: Validate additional Homepage services
+  ansible.builtin.assert:
+    that:
+      - item.name is defined
+      - item.href is defined
+      - item.href is match('^https?://')
+      - item.monitor_url | default(item.href) is match('^https?://')
+  loop: "{{ homepage_extra_services }}"
+
+- name: Inspect disk mount paths
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  loop: "{{ homepage_disks }}"
+  register: homepage_disk_paths
+
+- name: Require existing disk mount paths
+  ansible.builtin.assert:
+    that:
+      - item.stat.isdir | default(false)
+    fail_msg: "Disk path {{ item.item.path }} must already exist on the host."
+  loop: "{{ homepage_disk_paths.results }}"
+  loop_control:
+    label: "{{ item.item.path }}"
+
+- name: Create empty directories for disk capacity measurements
+  ansible.builtin.file:
+    path: "{{ item.path | regex_replace('/$', '') }}/.homepage-disk-metrics"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ homepage_disks }}"
+
+- name: Ensure Homepage directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ homepage_uid }}"
+    group: "{{ homepage_gid }}"
+    mode: "0750"
+  loop:
+    - "{{ homepage_compose_dir }}"
+    - "{{ homepage_config_dir }}"
+
+- name: Install Homepage configuration
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ homepage_config_dir }}/{{ item }}"
+    owner: "{{ homepage_uid }}"
+    group: "{{ homepage_gid }}"
+    mode: "0640"
+  loop: [settings.yaml, widgets.yaml, services.yaml]
+  register: homepage_config_files
+
+- name: Disable unused Homepage integrations
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ homepage_config_dir }}/{{ item.name }}"
+    owner: "{{ homepage_uid }}"
+    group: "{{ homepage_gid }}"
+    mode: "0640"
+  loop:
+    - {name: bookmarks.yaml, content: "[]\n"}
+    - {name: docker.yaml, content: "{}\n"}
+    - {name: kubernetes.yaml, content: "{}\n"}
+
+- name: Install Homepage Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ homepage_compose_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Validate Homepage Compose configuration
+  ansible.builtin.command:
+    argv: [docker, compose, -f, "{{ homepage_compose_dir }}/compose.yml", config, --quiet]
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Start Homepage and host metrics collector
+  ansible.builtin.command:
+    argv: >-
+      {{ ['docker', 'compose', '-f', homepage_compose_dir ~ '/compose.yml', 'up', '-d']
+         + (['--force-recreate'] if homepage_config_files.changed else []) }}
+  register: homepage_compose_up
+  changed_when: >-
+    'Created' in (homepage_compose_up.stdout + homepage_compose_up.stderr) or
+    'Recreated' in (homepage_compose_up.stdout + homepage_compose_up.stderr) or
+    'Started' in (homepage_compose_up.stdout + homepage_compose_up.stderr) or
+    'Pulling' in (homepage_compose_up.stdout + homepage_compose_up.stderr)
+
+- name: Wait for Homepage to respond
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ homepage_port }}/"
+    status_code: 200
+  register: homepage_ready
+  until: homepage_ready.status | default(0) == 200
+  retries: 20
+  delay: 3
+  when: not ansible_check_mode
+
+- name: Publish Homepage privately with Tailscale HTTPS
+  ansible.builtin.command:
+    argv: [tailscale, serve, --bg, --yes, --https=443, "{{ homepage_proxy_target }}"]
+  async: 60
+  poll: 2
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - >-
+      not homepage_serve_config.get('TCP', {}).get('443', {}).get('HTTPS', false) or
+      homepage_serve_config.get('Web', {}).get(homepage_serve_endpoint, {}).get('Handlers', {}).get('/', {}).get('Proxy', '') != homepage_proxy_target
+
+- name: Show Homepage URL
+  ansible.builtin.debug:
+    msg: "Homepage: https://{{ homepage_hostname }} (Tailscale access only)"
