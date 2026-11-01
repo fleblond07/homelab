@@ -1,5 +1,5 @@
 ---
-cloudflare_tunnel_image: cloudflare/cloudflared:latest
+cloudflare_tunnel_image: cloudflare/cloudflared:2026.10.7
 cloudflare_tunnel_container_name: homelab-cloudflared
 cloudflare_tunnel_compose_dir: /srv/homelab/compose/cloudflare-tunnel
 cloudflare_tunnel_secret_dir: /srv/homelab/secrets/cloudflare-tunnel
