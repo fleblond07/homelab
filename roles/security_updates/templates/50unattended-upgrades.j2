@@ -1,6 +1,8 @@
 Unattended-Upgrade::Origins-Pattern {
         "origin=${distro_id},codename=${distro_codename}-security";
         "origin=${distro_id},codename=${distro_codename},label=${distro_id}-Security";
+        "origin=${distro_id},archive=${distro_codename}-security";
+        "origin=Tailscale";
 };
 
 Unattended-Upgrade::Package-Blacklist {

@@ -1,6 +1,6 @@
 ---
 mariadb_name: homelab-mariadb
-mariadb_image: mariadb:11.4.12
+mariadb_image: mariadb:11.4.12@sha256:4f1d8d202fcf7bcb3902f63af09f9c1a050c2922a89652f22abaec0d4f015e83
 mariadb_restart_policy: unless-stopped
 
 mariadb_storage_root: /srv/homelab

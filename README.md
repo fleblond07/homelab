@@ -128,3 +128,7 @@ ansible-playbook playbooks/storage.yml
 ```
 
 See `docs/storage.md` for the layout, alert channels, and replacement notes.
+
+## Dependency updates
+
+Updates are managed by Renovate - internet-facing services are check continuously others are checked weekly

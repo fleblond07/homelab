@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices", ":enablePreCommit", "schedule:weekly"],
+  "timezone": "Europe/Paris",
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "labels": ["security"]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^roles/[^/]+/defaults/main\\.yml$/"],
+      "matchStrings": [
+        "^[a-z0-9_]+_image:\\s+(?<depName>[^\\s:@]+):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\\s*$"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": ["/^homelab//"],
+      "enabled": false
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "wordpress",
+        "caddy",
+        "cloudflare/cloudflared",
+        "node"
+      ],
+      "schedule": ["at any time"],
+      "labels": ["internet-facing"]
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["mariadb", "postgres"],
+      "matchUpdateTypes": ["major", "minor"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "matchManagers": ["github-actions", "pre-commit"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pinDigest"],
+      "minimumReleaseAge": "7 days",
+      "automerge": true
+    }
+  ]
+}
