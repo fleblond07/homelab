@@ -27,6 +27,18 @@ if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) &&
     $_SERVER['HTTPS'] = 'on';
 }
 
+{% if item.smtp is defined %}
+define('HOMELAB_SMTP_HOST', {{ item.smtp.host | to_json(ensure_ascii=False) | replace('$', '\\$') }});
+define('HOMELAB_SMTP_PORT', {{ item.smtp.port | default(wordpress_smtp_port) | int }});
+define('HOMELAB_SMTP_ENCRYPTION', {{ item.smtp.encryption | default(wordpress_smtp_encryption) | to_json(ensure_ascii=False) | replace('$', '\\$') }});
+define('HOMELAB_SMTP_USERNAME', {{ item.smtp.username | to_json(ensure_ascii=False) | replace('$', '\\$') }});
+define('HOMELAB_SMTP_PASSWORD', {{ item.smtp.password | to_json(ensure_ascii=False) | replace('$', '\\$') }});
+define('HOMELAB_SMTP_FROM_EMAIL', {{ item.smtp.from_email | to_json(ensure_ascii=False) | replace('$', '\\$') }});
+{% if item.smtp.from_name is defined %}
+define('HOMELAB_SMTP_FROM_NAME', {{ item.smtp.from_name | to_json(ensure_ascii=False) | replace('$', '\\$') }});
+{% endif %}
+
+{% endif %}
 {% for constant_name, constant_value in item.extra_constants | default({}) | dictsort %}
 define('{{ constant_name }}', {{ constant_value | to_json | replace('$', '\\$') }});
 {% endfor %}

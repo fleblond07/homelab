@@ -31,6 +31,19 @@
   loop: "{{ wordpress_sites }}"
   no_log: true
 
+- name: Validate WordPress SMTP settings
+  ansible.builtin.assert:
+    that:
+      - item.smtp.host | default('') | length > 0
+      - item.smtp.username | default('') | length > 0
+      - item.smtp.password | default('') | length > 0
+      - item.smtp.from_email | default('') is match('^[^@\\s]+@[^@\\s]+$')
+      - item.smtp.port | default(wordpress_smtp_port) | string is match('^[0-9]+$')
+      - item.smtp.encryption | default(wordpress_smtp_encryption) in ['ssl', 'tls']
+    fail_msg: "Each site's smtp needs host, username, password and from_email; encryption must be ssl or tls."
+  loop: "{{ wordpress_sites | selectattr('smtp', 'defined') | list }}"
+  no_log: true
+
 - name: Install WordPress restore packages
   ansible.builtin.apt:
     name: "{{ wordpress_restore_packages }}"
@@ -110,6 +123,26 @@
     loop_var: wordpress_site
     label: "{{ wordpress_site.name }}"
   when: wordpress_restore_enabled | bool or (wordpress_site.restore | default({})).enabled | default(false)
+
+- name: Install WordPress SMTP plugin
+  ansible.builtin.copy:
+    src: homelab-smtp.php
+    dest: "{{ wordpress_config_root }}/homelab-smtp.php"
+    owner: root
+    group: root
+    mode: "0644"
+  when: wordpress_sites | selectattr('smtp', 'defined') | list | length > 0
+  register: wordpress_smtp_plugin
+  notify: Recreate WordPress containers after configuration changes
+
+- name: Ensure WordPress mu-plugins directories exist
+  ansible.builtin.file:
+    path: "{{ wordpress_data_root }}/{{ item.0 }}/{{ item.1 }}"
+    state: directory
+    owner: "{{ wordpress_uid }}"
+    group: "{{ wordpress_gid }}"
+    mode: "0755"
+  loop: "{{ wordpress_sites | selectattr('smtp', 'defined') | map(attribute='name') | product(['wp-content', 'wp-content/mu-plugins']) | list }}"
 
 - name: Install WordPress Compose file
   ansible.builtin.template:

@@ -18,6 +18,9 @@ services:
     volumes:
       - {{ (wordpress_data_root ~ '/' ~ site.name ~ ':/var/www/html') | to_json }}
       - {{ (wordpress_config_root ~ '/' ~ site.name ~ '/wp-config.php:/var/www/html/wp-config.php:ro') | to_json }}
+{% if site.smtp is defined %}
+      - {{ (wordpress_config_root ~ '/homelab-smtp.php:/var/www/html/wp-content/mu-plugins/homelab-smtp.php:ro') | to_json }}
+{% endif %}
     networks:
       - {{ ('homelab-wordpress-' ~ site.name) | to_json }}
       - homelab-db-internal

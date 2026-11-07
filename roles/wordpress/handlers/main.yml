@@ -3,5 +3,7 @@
   ansible.builtin.command:
     argv: >-
       {{ ['docker', 'compose', '-f', wordpress_compose_dir ~ '/compose.yml', 'up', '-d', '--force-recreate']
-         + (wordpress_config_files.results | selectattr('changed') | map(attribute='item.name') | list) }}
+         + ((wordpress_config_files.results | selectattr('changed') | map(attribute='item.name') | list)
+            + (wordpress_sites | selectattr('smtp', 'defined') | map(attribute='name') | list
+               if wordpress_smtp_plugin | default({}) is changed else [])) | unique }}
   changed_when: true

@@ -14,6 +14,9 @@ wordpress_timezone: "{{ timezone | default('UTC') }}"
 wordpress_php_memory_limit: 256M
 wordpress_php_post_max_size: 64M
 
+wordpress_smtp_port: 465
+wordpress_smtp_encryption: ssl
+
 wordpress_uid: "33"
 wordpress_gid: "33"
 
