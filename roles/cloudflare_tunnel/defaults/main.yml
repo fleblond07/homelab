@@ -1,5 +1,5 @@
 ---
-cloudflare_tunnel_image: cloudflare/cloudflared:2026.10.7
+cloudflare_tunnel_image: cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
 cloudflare_tunnel_container_name: homelab-cloudflared
 cloudflare_tunnel_compose_dir: /srv/homelab/compose/cloudflare-tunnel
 cloudflare_tunnel_secret_dir: /srv/homelab/secrets/cloudflare-tunnel

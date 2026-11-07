@@ -1,6 +1,6 @@
 ---
 caddy_name: homelab-caddy
-caddy_image: caddy:2.10.0
+caddy_image: caddy:2.10.0@sha256:133b5eb7ef9d42e34756ba206b06d84f4e3eb308044e268e182c2747083f09de
 caddy_restart_policy: unless-stopped
 
 caddy_storage_root: /srv/homelab

@@ -8,8 +8,8 @@ beer_festival_source_dir: "{{ beer_festival_storage_root }}/apps/beer-festival"
 beer_festival_compose_dir: "{{ beer_festival_storage_root }}/compose/beer-festival"
 beer_festival_data_dir: "{{ beer_festival_storage_root }}/data/beer-festival/postgres"
 beer_festival_project_name: homelab-beer-festival
-beer_festival_postgres_image: postgres:17-alpine
-beer_festival_node_image: node:24-alpine
+beer_festival_postgres_image: postgres:17-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+beer_festival_node_image: node:24-alpine@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85
 beer_festival_backend_image: homelab/beer-festival-backend:latest
 beer_festival_frontend_image: homelab/beer-festival-frontend:latest
 beer_festival_database_name: beer_festival
