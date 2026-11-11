@@ -11,7 +11,7 @@
       "customType": "regex",
       "managerFilePatterns": ["/^roles/[^/]+/defaults/main\\.yml$/"],
       "matchStrings": [
-        "^[a-z0-9_]+_image:\\s+(?<depName>[^\\s:@]+):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\\s*$"
+        "[a-z0-9_]+_image:[ \\t]+(?<depName>[^\\s:@]+):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?"
       ],
       "datasourceTemplate": "docker"
     }
