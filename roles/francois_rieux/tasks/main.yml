@@ -1,0 +1,4 @@
+---
+- name: Deploy François Rieux site when enabled
+  ansible.builtin.include_tasks: deploy.yml
+  when: francois_rieux_enabled | bool

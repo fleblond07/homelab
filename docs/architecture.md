@@ -2,6 +2,8 @@
   - wp<1-5>.local # Wordpress domains, redacted for privacy
   - flavienleblond.com
   - beer-festival.fr
+  - francoisrieux.com
+  - git.francoisrieux.com
   - vault.local
   - nc.local
   - ai.local
@@ -12,6 +14,8 @@
 - Wordpress <1-5> - Public
 - Homepage - Public
 - Beer Festival - Public
+- François Rieux site - Public
+- Forgejo - Public (hosts the François Rieux site repository and CMS login)
 - Vaultwarden - Private/VPN-Protected
 - NextCloud - Private/VPN-Protected
 - Media Stack - Private

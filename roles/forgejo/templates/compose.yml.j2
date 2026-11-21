@@ -1,0 +1,44 @@
+services:
+  forgejo:
+    image: {{ forgejo_image | to_json }}
+    container_name: {{ forgejo_container_name | to_json }}
+    restart: {{ forgejo_restart_policy | to_json }}
+    user: {{ (forgejo_uid ~ ':' ~ forgejo_gid) | to_json }}
+    environment:
+      TZ: {{ forgejo_timezone | to_json }}
+      FORGEJO__DEFAULT__APP_NAME: {{ forgejo_app_name | to_json }}
+      FORGEJO__server__DOMAIN: {{ forgejo_host | to_json }}
+      FORGEJO__server__ROOT_URL: {{ forgejo_root_url | to_json }}
+      FORGEJO__server__HTTP_PORT: {{ forgejo_port | string | to_json }}
+      FORGEJO__server__DISABLE_SSH: "true"
+      FORGEJO__server__START_SSH_SERVER: "false"
+      FORGEJO__server__LFS_START_SERVER: "true"
+      FORGEJO__database__DB_TYPE: "sqlite3"
+      FORGEJO__security__INSTALL_LOCK: "true"
+      FORGEJO__service__DISABLE_REGISTRATION: "true"
+      FORGEJO__service__REQUIRE_SIGNIN_VIEW: {{ forgejo_require_signin_view | bool | string | lower | to_json }}
+      FORGEJO__openid__ENABLE_OPENID_SIGNIN: "false"
+      FORGEJO__openid__ENABLE_OPENID_SIGNUP: "false"
+      FORGEJO__session__COOKIE_SECURE: "true"
+      FORGEJO__cors__ENABLED: "true"
+      FORGEJO__cors__ALLOW_DOMAIN: {{ forgejo_cors_allowed_origins | join(',') | to_json }}
+      FORGEJO__cors__METHODS: "GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS"
+      FORGEJO__cors__HEADERS: "Content-Type,User-Agent,Authorization"
+      FORGEJO__log__LEVEL: {{ forgejo_log_level | to_json }}
+    volumes:
+      - {{ (forgejo_data_dir ~ ':/var/lib/gitea') | to_json }}
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:{{ forgejo_port }}/api/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    dns: {{ homelab_networks_dns_servers | default(['1.1.1.1', '1.0.0.1']) | to_json }}
+    networks: [forgejo]
+
+networks:
+  forgejo:
+    external: true
+    name: {{ forgejo_network | to_json }}

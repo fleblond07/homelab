@@ -81,13 +81,16 @@ ansible-playbook playbooks/firewall.yml
 ansible-playbook playbooks/storage.yml
 ansible-playbook playbooks/backups.yml --ask-vault-pass
 ansible-playbook playbooks/beer_festival.yml --ask-vault-pass
+ansible-playbook playbooks/forgejo.yml
+ansible-playbook playbooks/francois_rieux.yml --ask-vault-pass
 ```
 
 Bootstrap roles are tagged, so a focused run can use tags such as `time`,
 `ntp`, `packages`, `python`, `tools`, `security`, `updates`,
 `unattended-upgrades`, `services`, `logging`, `hardening`, `ssh`, `fail2ban`,
 `firewall`, `storage`, `smart`, `disk-alerts`, `docker`, `containers`,
-`networks`, `cloudflare`, `tunnel`, `tailscale`, `vpn`, `mariadb`, `database`, or `beer-festival`.
+`networks`, `cloudflare`, `tunnel`, `tailscale`, `vpn`, `mariadb`, `database`, `beer-festival`,
+`forgejo`, `git`, or `francois-rieux`.
 
 ## Tailscale
 
@@ -117,6 +120,13 @@ PostgreSQL database. It is included in bootstrap and enabled through inventory
 after supplying its secrets.
 
 
+## François Rieux site
+
+Forgejo (`git.francoisrieux.com`) hosts the site repository, a builder container
+polls it and publishes the Astro build, and Caddy serves it to the tunnel.
+François edits content through Sveltia CMS at `/admin/`. Both roles are
+disabled by default; see `docs/francois-rieux.md` for enabling, tunnel
+hostnames, Forgejo accounts and the OAuth application.
 
 ## Storage
 

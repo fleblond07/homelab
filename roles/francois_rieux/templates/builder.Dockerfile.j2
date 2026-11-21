@@ -1,0 +1,6 @@
+FROM {{ francois_rieux_node_image }}
+RUN apk add --no-cache git
+COPY build-loop.sh /usr/local/bin/build-loop
+USER {{ francois_rieux_uid }}:{{ francois_rieux_gid }}
+WORKDIR /work
+CMD ["/usr/local/bin/build-loop"]

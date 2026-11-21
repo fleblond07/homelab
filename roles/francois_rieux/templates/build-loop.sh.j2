@@ -1,0 +1,73 @@
+#!/bin/sh
+set -eu
+
+repo=/work/repo
+site=/srv/site
+releases="$site/releases"
+branch={{ francois_rieux_repo_branch | quote }}
+interval={{ francois_rieux_poll_interval | int }}
+keep={{ francois_rieux_releases_keep | int }}
+
+export HOME=/work
+export npm_config_cache=/work/.npm
+export NPM_CONFIG_UPDATE_NOTIFIER=false
+export ASTRO_TELEMETRY_DISABLED=1
+
+git_remote() {
+    if [ -n "${REPO_TOKEN:-}" ]; then
+        git -c "http.extraHeader=Authorization: token $REPO_TOKEN" "$@"
+    else
+        git "$@"
+    fi
+}
+
+sync_repo() {
+    if [ ! -d "$repo/.git" ]; then
+        rm -rf "$repo"
+        git_remote clone --quiet --branch "$branch" --single-branch "$REPO_URL" "$repo" || return 1
+    fi
+    git_remote -C "$repo" fetch --quiet --prune origin "$branch" || return 1
+    git -C "$repo" reset --quiet --hard "origin/$branch" || return 1
+    git -C "$repo" clean --quiet -fdx -e node_modules || return 1
+}
+
+build_release() {
+    rev=$1
+    target="$releases/$rev"
+    staging="$releases/.$rev.tmp"
+    echo "Building $rev"
+    (cd "$repo" && npm ci --no-audit --no-fund && npm run build) || return 1
+    [ -f "$repo/dist/index.html" ] || { echo "dist/index.html missing" >&2; return 1; }
+    rm -rf "$staging" "$target"
+    cp -R "$repo/dist" "$staging" || return 1
+    mv "$staging" "$target" || return 1
+    ln -sfn "releases/$rev" "$site/.current.tmp" || return 1
+    mv -T "$site/.current.tmp" "$site/current" || return 1
+    printf '%s\n' "$rev" > "$site/.revision"
+    rm -f "$site/.failed"
+    echo "Published $rev"
+}
+
+prune_releases() {
+    ls -1t "$releases" | grep -v '^\.' | tail -n "+$((keep + 1))" | while read -r old; do
+        [ "$old" = "$(basename "$(readlink "$site/current")")" ] || rm -rf "${releases:?}/$old"
+    done
+}
+
+mkdir -p "$releases"
+while true; do
+    if sync_repo; then
+        rev=$(git -C "$repo" rev-parse HEAD)
+        if [ "$rev" != "$(cat "$site/.revision" 2>/dev/null || true)" ] && [ "$rev" != "$(cat "$site/.failed" 2>/dev/null || true)" ]; then
+            if build_release "$rev"; then
+                prune_releases
+            else
+                echo "Build failed for $rev" >&2
+                printf '%s\n' "$rev" > "$site/.failed"
+            fi
+        fi
+    else
+        echo "Repository sync failed" >&2
+    fi
+    sleep "$interval"
+done

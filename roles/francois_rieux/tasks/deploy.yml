@@ -1,0 +1,127 @@
+---
+- name: Validate François Rieux site settings
+  ansible.builtin.assert:
+    that:
+      - francois_rieux_host is match('^[a-z0-9.-]+$')
+      - francois_rieux_redirect_hosts | select('match', '^[a-z0-9.-]+$') | list | length == francois_rieux_redirect_hosts | length
+      - francois_rieux_repo_url is match('^https?://')
+      - francois_rieux_repo_branch is match('^[A-Za-z0-9._/-]+$')
+      - francois_rieux_poll_interval | int >= 10
+      - francois_rieux_releases_keep | int >= 1
+    fail_msg: Configure the François Rieux site as described in docs/francois-rieux.md.
+
+- name: Create François Rieux root-owned directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ francois_rieux_compose_dir }}"
+    - "{{ francois_rieux_site_dir | dirname }}"
+
+- name: Create François Rieux builder-owned directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ francois_rieux_uid }}"
+    group: "{{ francois_rieux_gid }}"
+    mode: "0755"
+  loop:
+    - "{{ francois_rieux_site_dir }}"
+    - "{{ francois_rieux_work_dir }}"
+
+- name: Install François Rieux build files
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ francois_rieux_compose_dir }}/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - src: builder.Dockerfile.j2
+      dest: builder.Dockerfile
+      mode: "0644"
+    - src: build-loop.sh.j2
+      dest: build-loop.sh
+      mode: "0755"
+  register: francois_rieux_build_files
+
+- name: Install François Rieux Caddyfile
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: "{{ francois_rieux_compose_dir }}/Caddyfile"
+    owner: root
+    group: root
+    mode: "0644"
+  register: francois_rieux_caddyfile
+
+- name: Validate François Rieux Caddyfile
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - --volume
+      - "{{ francois_rieux_compose_dir }}/Caddyfile:/etc/caddy/Caddyfile:ro"
+      - "{{ francois_rieux_web_image }}"
+      - caddy
+      - validate
+      - --config
+      - /etc/caddy/Caddyfile
+      - --adapter
+      - caddyfile
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Install François Rieux Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ francois_rieux_compose_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0600"
+  register: francois_rieux_compose
+  no_log: true
+
+- name: Validate François Rieux Compose file
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - "{{ francois_rieux_project_name }}"
+      - -f
+      - "{{ francois_rieux_compose_dir }}/compose.yml"
+      - config
+      - --quiet
+  changed_when: false
+  when: not ansible_check_mode
+  no_log: true
+
+- name: Check for existing François Rieux builder image
+  ansible.builtin.command:
+    argv: [docker, image, inspect, "{{ francois_rieux_builder_image }}"]
+  register: francois_rieux_builder_image_check
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Start François Rieux site and wait for healthy services
+  ansible.builtin.command:
+    argv: >-
+      {{ ['docker', 'compose', '--project-name', francois_rieux_project_name,
+          '-f', francois_rieux_compose_dir ~ '/compose.yml', 'up', '-d',
+          '--wait', '--wait-timeout', francois_rieux_wait_timeout | string]
+         + (['--build'] if francois_rieux_build_files.changed
+            or francois_rieux_builder_image_check.rc != 0 else [])
+         + (['--force-recreate'] if francois_rieux_caddyfile.changed else []) }}
+  register: francois_rieux_up
+  changed_when: >-
+    francois_rieux_build_files.changed or francois_rieux_caddyfile.changed
+    or francois_rieux_compose.changed or francois_rieux_builder_image_check.rc != 0
+    or 'Created' in (francois_rieux_up.stdout + francois_rieux_up.stderr)
+    or 'Recreated' in (francois_rieux_up.stdout + francois_rieux_up.stderr)
+    or 'Started' in (francois_rieux_up.stdout + francois_rieux_up.stderr)
+  when: not ansible_check_mode

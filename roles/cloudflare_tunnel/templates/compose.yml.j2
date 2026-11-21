@@ -26,6 +26,8 @@ services:
       - tunnel-origin
       - homelab-flb-dev
       - homelab-beer-festival
+      - homelab-forgejo
+      - homelab-francois-rieux
 {% for site in wordpress_sites | default([]) %}
       - {{ ('homelab-wordpress-' ~ site.name) | to_json }}
 {% endfor %}
@@ -37,6 +39,10 @@ networks:
   homelab-flb-dev:
     external: true
   homelab-beer-festival:
+    external: true
+  homelab-forgejo:
+    external: true
+  homelab-francois-rieux:
     external: true
 {% for site in wordpress_sites | default([]) %}
   {{ ('homelab-wordpress-' ~ site.name) | to_json }}:

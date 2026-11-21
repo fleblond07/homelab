@@ -1,0 +1,36 @@
+---
+francois_rieux_enabled: false
+francois_rieux_project_name: homelab-francois-rieux
+francois_rieux_network: homelab-francois-rieux
+francois_rieux_storage_root: /srv/homelab
+francois_rieux_compose_dir: "{{ francois_rieux_storage_root }}/compose/francois-rieux"
+francois_rieux_site_dir: "{{ francois_rieux_storage_root }}/data/francois-rieux/site"
+francois_rieux_work_dir: "{{ francois_rieux_storage_root }}/data/francois-rieux/work"
+francois_rieux_uid: "1000"
+francois_rieux_gid: "1000"
+francois_rieux_node_image: node:24-alpine@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85
+francois_rieux_web_image: caddy:2.10.0@sha256:133b5eb7ef9d42e34756ba206b06d84f4e3eb308044e268e182c2747083f09de
+francois_rieux_builder_image: homelab/francois-rieux-builder:latest
+francois_rieux_builder_container_name: homelab-francois-rieux-builder
+francois_rieux_web_container_name: homelab-francois-rieux-web
+francois_rieux_web_port: 8080
+francois_rieux_timezone: "{{ timezone | default('UTC') }}"
+francois_rieux_host: francoisrieux.com
+francois_rieux_redirect_hosts:
+  - www.francoisrieux.com
+francois_rieux_repo_owner: flavien
+francois_rieux_repo_name: francoisrieux
+francois_rieux_repo_branch: main
+francois_rieux_forgejo_internal_url: "http://{{ forgejo_container_name | default('homelab-forgejo') }}:{{ forgejo_port | default(3000) }}"
+francois_rieux_repo_url: "{{ francois_rieux_forgejo_internal_url }}/{{ francois_rieux_repo_owner }}/{{ francois_rieux_repo_name }}.git"
+francois_rieux_forgejo_network: "{{ forgejo_network | default('homelab-forgejo') }}"
+francois_rieux_repo_token: ""
+francois_rieux_poll_interval: 60
+francois_rieux_releases_keep: 3
+francois_rieux_security_headers:
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+francois_rieux_wait_timeout: 120

@@ -1,0 +1,7 @@
+---
+- name: Deploy the François Rieux site
+  hosts: homelab
+  become: true
+  roles:
+    - role: francois_rieux
+      tags: [francois-rieux, app]

@@ -1,0 +1,7 @@
+---
+- name: Deploy Forgejo
+  hosts: homelab
+  become: true
+  roles:
+    - role: forgejo
+      tags: [forgejo, git, app]

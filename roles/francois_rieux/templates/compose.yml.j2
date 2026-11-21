@@ -1,0 +1,52 @@
+services:
+  builder:
+    image: {{ francois_rieux_builder_image | to_json }}
+    container_name: {{ francois_rieux_builder_container_name | to_json }}
+    restart: unless-stopped
+    build:
+      context: {{ francois_rieux_compose_dir | to_json }}
+      dockerfile: builder.Dockerfile
+    environment:
+      TZ: {{ francois_rieux_timezone | to_json }}
+      REPO_URL: {{ francois_rieux_repo_url | to_json }}
+      REPO_TOKEN: {{ francois_rieux_repo_token | replace('$', '$$') | to_json }}
+    volumes:
+      - {{ (francois_rieux_work_dir ~ ':/work') | to_json }}
+      - {{ (francois_rieux_site_dir ~ ':/srv/site') | to_json }}
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    dns: {{ homelab_networks_dns_servers | default(['1.1.1.1', '1.0.0.1']) | to_json }}
+    networks: [forgejo, origin]
+
+  web:
+    image: {{ francois_rieux_web_image | to_json }}
+    container_name: {{ francois_rieux_web_container_name | to_json }}
+    restart: unless-stopped
+    user: {{ (francois_rieux_uid ~ ':' ~ francois_rieux_gid) | to_json }}
+    environment:
+      TZ: {{ francois_rieux_timezone | to_json }}
+    volumes:
+      - {{ (francois_rieux_compose_dir ~ '/Caddyfile:/etc/caddy/Caddyfile:ro') | to_json }}
+      - {{ (francois_rieux_site_dir ~ ':/srv/site:ro') | to_json }}
+    read_only: true
+    tmpfs:
+      - {{ ('/data:uid=' ~ francois_rieux_uid ~ ',gid=' ~ francois_rieux_gid) | to_json }}
+      - {{ ('/config:uid=' ~ francois_rieux_uid ~ ',gid=' ~ francois_rieux_gid) | to_json }}
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:{{ francois_rieux_web_port }}/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    networks: [origin]
+
+networks:
+  forgejo:
+    external: true
+    name: {{ francois_rieux_forgejo_network | to_json }}
+  origin:
+    external: true
+    name: {{ francois_rieux_network | to_json }}

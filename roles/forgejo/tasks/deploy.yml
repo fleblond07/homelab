@@ -1,0 +1,70 @@
+---
+- name: Validate Forgejo settings
+  ansible.builtin.assert:
+    that:
+      - forgejo_root_url is match('^https://[^/]+/$')
+      - forgejo_cors_allowed_origins | length > 0
+      - "'*' not in forgejo_cors_allowed_origins"
+      - forgejo_cors_allowed_origins | select('match', '^https://[^/]+$') | list | length == forgejo_cors_allowed_origins | length
+    fail_msg: Configure forgejo_root_url and forgejo_cors_allowed_origins as described in docs/francois-rieux.md.
+
+- name: Create Forgejo compose directory
+  ansible.builtin.file:
+    path: "{{ forgejo_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create Forgejo persistent directory
+  ansible.builtin.file:
+    path: "{{ forgejo_data_dir }}"
+    state: directory
+    owner: "{{ forgejo_uid }}"
+    group: "{{ forgejo_gid }}"
+    mode: "0700"
+
+- name: Install Forgejo Compose file
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ forgejo_compose_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  register: forgejo_compose
+
+- name: Validate Forgejo Compose file
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - "{{ forgejo_project_name }}"
+      - -f
+      - "{{ forgejo_compose_dir }}/compose.yml"
+      - config
+      - --quiet
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Start Forgejo and wait for a healthy service
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - "{{ forgejo_project_name }}"
+      - -f
+      - "{{ forgejo_compose_dir }}/compose.yml"
+      - up
+      - -d
+      - --wait
+      - --wait-timeout
+      - "{{ forgejo_wait_timeout | string }}"
+  register: forgejo_up
+  changed_when: >-
+    forgejo_compose.changed
+    or 'Created' in (forgejo_up.stdout + forgejo_up.stderr)
+    or 'Recreated' in (forgejo_up.stdout + forgejo_up.stderr)
+    or 'Started' in (forgejo_up.stdout + forgejo_up.stderr)
+  when: not ansible_check_mode

@@ -32,6 +32,10 @@
       tags: [flb-dev, app, caddy]
     - role: beer_festival
       tags: [beer-festival, app]
+    - role: forgejo
+      tags: [forgejo, git, app]
+    - role: francois_rieux
+      tags: [francois-rieux, app]
     - role: cloudflare_tunnel
       tags: [cloudflare, tunnel]
     - role: tailscale
