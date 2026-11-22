@@ -1,6 +1,6 @@
 ---
 homepage_image: ghcr.io/gethomepage/homepage:v2.8.0@sha256:019d8f063a7299e7c1c51ee4a70b692291809af3244894fbec2c2ac7d1f71b18
-homepage_glances_image: nicolargo/glances:4.5.7@sha256:28e4038aa2f2d635f4e6e1e3c7667ce4a808326cb918bba99b0041548b6e7425
+homepage_glances_image: nicolargo/glances:4.5.9@sha256:1d994d181732cfbf68b7c5826a1f71b89624e3eaaa2fe28b28048b2f61b200d7
 homepage_storage_root: /srv/homelab
 homepage_compose_dir: "{{ homepage_storage_root }}/compose/homepage"
 homepage_config_dir: "{{ homepage_storage_root }}/config/homepage"
