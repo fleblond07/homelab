@@ -88,17 +88,13 @@
       - mariadb
       - sh
       - -c
-      - >-
-        mariadb -uroot -p"$(cat /run/secrets/mariadb_root_password)"
-        -e "CREATE DATABASE IF NOT EXISTS \`{{ item.database_name }}\`
-        CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-        CREATE USER IF NOT EXISTS '{{ item.database_user }}'@'%'
-        IDENTIFIED BY '{{ item.database_password | replace("'", "''") }}';
-        ALTER USER '{{ item.database_user }}'@'%'
-        IDENTIFIED BY '{{ item.database_password | replace("'", "''") }}';
-        GRANT ALL PRIVILEGES ON \`{{ item.database_name }}\`.*
-        TO '{{ item.database_user }}'@'%';
-        FLUSH PRIVILEGES;"
+      - exec mariadb -uroot -p"$(cat /run/secrets/mariadb_root_password)"
+    stdin: |
+      CREATE DATABASE IF NOT EXISTS `{{ item.database_name }}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      CREATE USER IF NOT EXISTS '{{ item.database_user }}'@'%' IDENTIFIED BY '{{ item.database_password | replace('\\', '\\\\') | replace("'", "''") }}';
+      ALTER USER '{{ item.database_user }}'@'%' IDENTIFIED BY '{{ item.database_password | replace('\\', '\\\\') | replace("'", "''") }}';
+      GRANT ALL PRIVILEGES ON `{{ item.database_name }}`.* TO '{{ item.database_user }}'@'%';
+      FLUSH PRIVILEGES;
   changed_when: false
   loop: "{{ wordpress_sites }}"
   no_log: true
